@@ -13,6 +13,7 @@ import {
   X,
   Wand2,
   BookText,
+  DatabaseBackup,
 } from "lucide-react";
 import clsx from "clsx";
 
@@ -20,11 +21,13 @@ export function Sidebar({
   onOpenSettings,
   onOpenPresets,
   onOpenSnippets,
+  onOpenBackup,
   onClose,
 }: {
   onOpenSettings: () => void;
   onOpenPresets: () => void;
   onOpenSnippets: () => void;
+  onOpenBackup: () => void;
   onClose?: () => void;
 }) {
   const conversations = useStore((s) => s.conversations);
@@ -176,6 +179,16 @@ export function Sidebar({
               setup
             </span>
           )}
+        </button>
+        <button
+          className="btn-ghost w-full justify-start"
+          onClick={() => {
+            onOpenBackup();
+            onClose?.();
+          }}
+        >
+          <DatabaseBackup size={16} />
+          Backup & restore
         </button>
       </div>
     </div>

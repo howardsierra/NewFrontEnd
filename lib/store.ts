@@ -12,6 +12,7 @@ import {
   ModelInfo,
 } from "./types";
 import { PresetDraft } from "./sillytavern";
+import type { BackupFile, ImportSummary } from "./backup";
 
 export interface SavedPreset extends PresetDraft {
   id: string;
@@ -66,6 +67,9 @@ interface AppState {
   saveSnippet: (draft: { title: string; body: string }, id?: string) => string;
   removeSnippet: (id: string) => void;
   addSnippets: (items: Array<{ title: string; body: string }>) => void;
+
+  // backup
+  importBackup: (data: BackupFile, mode: "merge" | "replace") => ImportSummary;
 }
 
 function makeConversation(): Conversation {
@@ -243,6 +247,93 @@ export const useStore = create<AppState>()(
           ],
         }));
         return newId;
+      },
+      importBackup: (data, mode) => {
+        const summary: ImportSummary = {
+          providers: 0,
+          presets: 0,
+          snippets: 0,
+          conversations: 0,
+          skipped: 0,
+        };
+
+        if (mode === "replace") {
+          const next: Partial<AppState> = {
+            providers: data.providers,
+            presets: data.presets,
+            snippets: data.snippets,
+          };
+          summary.providers = data.providers.length;
+          summary.presets = data.presets.length;
+          summary.snippets = data.snippets.length;
+          if (data.conversations) {
+            next.conversations = data.conversations;
+            next.activeId = data.conversations[0]?.id ?? null;
+            summary.conversations = data.conversations.length;
+          }
+          set(next as AppState);
+          return summary;
+        }
+
+        // Merge: append only items not already present (by content signature).
+        const state = get();
+        const provSig = (p: ProviderConfig) =>
+          `${p.kind}|${p.baseUrl ?? ""}|${p.label}`.toLowerCase();
+        const existingProv = new Set(state.providers.map(provSig));
+        const newProviders = data.providers.filter((p) => {
+          if (existingProv.has(provSig(p))) {
+            summary.skipped++;
+            return false;
+          }
+          existingProv.add(provSig(p));
+          summary.providers++;
+          return true;
+        });
+
+        const existingPreset = new Set(
+          state.presets.map((p) => p.name.toLowerCase())
+        );
+        const newPresets = data.presets.filter((p) => {
+          if (existingPreset.has(p.name.toLowerCase())) {
+            summary.skipped++;
+            return false;
+          }
+          existingPreset.add(p.name.toLowerCase());
+          summary.presets++;
+          return true;
+        });
+
+        const snipSig = (s: Snippet) => `${s.title}|${s.body}`;
+        const existingSnip = new Set(state.snippets.map(snipSig));
+        const newSnippets = data.snippets.filter((s) => {
+          if (existingSnip.has(snipSig(s))) {
+            summary.skipped++;
+            return false;
+          }
+          existingSnip.add(snipSig(s));
+          summary.snippets++;
+          return true;
+        });
+
+        // Regenerate ids on imported items to avoid collisions with existing.
+        const reId = <T extends { id: string }>(arr: T[]): T[] =>
+          arr.map((x) => ({ ...x, id: nanoid() }));
+
+        const patch: Partial<AppState> = {
+          providers: [...state.providers, ...reId(newProviders)],
+          presets: [...state.presets, ...reId(newPresets)],
+          snippets: [...state.snippets, ...reId(newSnippets)],
+        };
+
+        if (data.conversations?.length) {
+          const existingConv = new Set(state.conversations.map((c) => c.id));
+          const newConvs = data.conversations.filter((c) => !existingConv.has(c.id));
+          summary.conversations = newConvs.length;
+          patch.conversations = [...newConvs, ...state.conversations];
+        }
+
+        set(patch as AppState);
+        return summary;
       },
       removeSnippet: (id) =>
         set((s) => ({ snippets: s.snippets.filter((sn) => sn.id !== id) })),

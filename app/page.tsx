@@ -7,6 +7,7 @@ import { ChatView } from "@/components/ChatView";
 import { SettingsModal } from "@/components/SettingsModal";
 import { PresetBuilder } from "@/components/PresetBuilder";
 import { SnippetLibrary } from "@/components/SnippetLibrary";
+import { BackupModal } from "@/components/BackupModal";
 import { Sparkles } from "lucide-react";
 import clsx from "clsx";
 
@@ -21,6 +22,7 @@ export default function Page() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [presetsOpen, setPresetsOpen] = useState(false);
   const [snippetsOpen, setSnippetsOpen] = useState(false);
+  const [backupOpen, setBackupOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Ensure there's always an active conversation once hydrated.
@@ -71,6 +73,7 @@ export default function Page() {
           onOpenSettings={() => setSettingsOpen(true)}
           onOpenPresets={() => setPresetsOpen(true)}
           onOpenSnippets={() => setSnippetsOpen(true)}
+          onOpenBackup={() => setBackupOpen(true)}
         />
       </div>
 
@@ -101,6 +104,7 @@ export default function Page() {
             }}
             onOpenPresets={() => setPresetsOpen(true)}
             onOpenSnippets={() => setSnippetsOpen(true)}
+            onOpenBackup={() => setBackupOpen(true)}
             onClose={() => setSidebarOpen(false)}
           />
         </div>
@@ -120,6 +124,7 @@ export default function Page() {
       {settingsOpen && <SettingsModal onClose={() => setSettingsOpen(false)} />}
       {presetsOpen && <PresetBuilder onClose={() => setPresetsOpen(false)} />}
       {snippetsOpen && <SnippetLibrary onClose={() => setSnippetsOpen(false)} />}
+      {backupOpen && <BackupModal onClose={() => setBackupOpen(false)} />}
     </div>
   );
 }

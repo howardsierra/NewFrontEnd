@@ -39,6 +39,10 @@ your keys directly when you'd rather skip the web platforms.
   system prompt. Includes a starter pack, search, and JSON import/export.
 - **Conversation management** — multiple chats, rename, regenerate, delete, all
   persisted locally.
+- **Backup & restore** — export your whole setup (providers, presets, snippets,
+  optionally conversations) to a versioned JSON file and import it on another
+  browser or device. Keys are included only if you opt in; import merges by
+  default (skipping duplicates) or can replace everything.
 - **Keys never leave your browser** — stored in `localStorage` and passed
   per-request to a thin proxy that forwards them to the provider. Nothing is
   persisted server-side. The proxy exists only to sidestep the CORS blocks that
@@ -107,7 +111,6 @@ lib/
 
 - Snippet placeholder prompts (fill in `{{variables}}` on insert).
 - Editable/override pricing for custom and local models.
-- Export/import the whole provider setup as a portable config file.
 
 ## Security notes
 
