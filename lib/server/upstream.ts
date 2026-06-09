@@ -46,18 +46,25 @@ function buildOpenAiCall(req: ChatRequest): UpstreamCall {
     headers["X-Title"] = "NewFrontEnd";
   }
 
+  const body: Record<string, unknown> = {
+    model: req.model,
+    messages,
+    stream: true,
+    temperature: req.params.temperature,
+    max_tokens: req.params.maxTokens,
+    top_p: req.params.topP,
+  };
+  // Ask for usage in the final stream chunk. Custom/local servers may not
+  // support this option, so only request it for providers known to honor it.
+  if (req.kind === "openai" || req.kind === "openrouter") {
+    body.stream_options = { include_usage: true };
+  }
+
   return {
     url: `${base}/chat/completions`,
     headers,
     flavor: "openai",
-    body: JSON.stringify({
-      model: req.model,
-      messages,
-      stream: true,
-      temperature: req.params.temperature,
-      max_tokens: req.params.maxTokens,
-      top_p: req.params.topP,
-    }),
+    body: JSON.stringify(body),
   };
 }
 
@@ -114,17 +121,25 @@ export function buildUpstreamCall(req: ChatRequest): UpstreamCall {
     : buildOpenAiCall(req);
 }
 
+export type ParsedEvent =
+  | { type: "text"; text: string }
+  | { type: "usage"; input: number; output: number };
+
 /**
- * Parse an upstream SSE stream and yield plain-text deltas.
+ * Parse an upstream SSE stream and yield typed events (text deltas + usage).
  * Works for both OpenAI-style and Anthropic-style event streams.
  */
 export async function* parseSse(
   stream: ReadableStream<Uint8Array>,
   flavor: "openai" | "anthropic"
-): AsyncGenerator<string> {
+): AsyncGenerator<ParsedEvent> {
   const reader = stream.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
+
+  // Anthropic reports input once (message_start) and output cumulatively.
+  let anthropicInput = 0;
+  let anthropicOutput = 0;
 
   while (true) {
     const { done, value } = await reader.read();
@@ -151,15 +166,33 @@ export async function* parseSse(
 
         if (flavor === "openai") {
           const delta = json.choices?.[0]?.delta?.content;
-          if (typeof delta === "string") yield delta;
+          if (typeof delta === "string" && delta) {
+            yield { type: "text", text: delta };
+          }
+          // Final usage chunk (requires stream_options.include_usage).
+          if (json.usage) {
+            yield {
+              type: "usage",
+              input: json.usage.prompt_tokens ?? 0,
+              output: json.usage.completion_tokens ?? 0,
+            };
+          }
         } else {
-          // Anthropic: content_block_delta with text_delta.
+          // Anthropic event stream.
+          if (json.type === "message_start" && json.message?.usage) {
+            anthropicInput = json.message.usage.input_tokens ?? 0;
+            anthropicOutput = json.message.usage.output_tokens ?? 0;
+          }
           if (
             json.type === "content_block_delta" &&
             json.delta?.type === "text_delta" &&
             typeof json.delta.text === "string"
           ) {
-            yield json.delta.text;
+            yield { type: "text", text: json.delta.text };
+          }
+          if (json.type === "message_delta" && json.usage) {
+            anthropicOutput = json.usage.output_tokens ?? anthropicOutput;
+            yield { type: "usage", input: anthropicInput, output: anthropicOutput };
           }
           if (json.type === "error") {
             throw new Error(json.error?.message || "Anthropic stream error");

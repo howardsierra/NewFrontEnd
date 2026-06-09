@@ -95,13 +95,50 @@ export function useChat() {
 
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
+      let buffer = "";
+      let streamError: string | null = null;
+
+      const handleLine = (line: string) => {
+        const trimmed = line.trim();
+        if (!trimmed) return;
+        let ev: any;
+        try {
+          ev = JSON.parse(trimmed);
+        } catch {
+          return;
+        }
+        if (ev.t === "d") {
+          useStore.getState().appendToMessage(convId, assistant.id, ev.v);
+        } else if (ev.t === "u") {
+          useStore
+            .getState()
+            .patchMessage(convId, assistant.id, {
+              usage: { input: ev.in, output: ev.out },
+            });
+        } else if (ev.t === "e") {
+          streamError = ev.v;
+        }
+      };
+
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        const chunk = decoder.decode(value, { stream: true });
-        if (chunk) useStore.getState().appendToMessage(convId, assistant.id, chunk);
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+        for (const line of lines) handleLine(line);
       }
-      useStore.getState().patchMessage(convId, assistant.id, { streaming: false });
+      if (buffer) handleLine(buffer);
+
+      const current = useStore
+        .getState()
+        .conversations.find((c) => c.id === convId)
+        ?.messages.find((m) => m.id === assistant.id);
+      useStore.getState().patchMessage(convId, assistant.id, {
+        streaming: false,
+        // Only surface a stream error if we got no content at all.
+        error: streamError && !current?.content ? streamError : current?.error,
+      });
     } catch (e: any) {
       const aborted = e?.name === "AbortError";
       const current = useStore

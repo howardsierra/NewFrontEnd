@@ -11,8 +11,10 @@ import {
   SlidersHorizontal,
   Search,
   Menu,
+  Gauge,
 } from "lucide-react";
 import clsx from "clsx";
+import { conversationUsage, estimateContextTokens, formatTokens } from "@/lib/tokens";
 
 export function ModelBar({
   conv,
@@ -87,7 +89,34 @@ export function ModelBar({
 
       <div className="flex-1" />
 
+      <TokenMeter conv={conv} />
       <ParamsButton conv={conv} />
+    </div>
+  );
+}
+
+function TokenMeter({ conv }: { conv: Conversation }) {
+  const usage = conversationUsage(conv);
+  const contextEst = estimateContextTokens(conv);
+
+  return (
+    <div
+      className="hidden items-center gap-2 rounded-lg border border-line bg-bg-elevated px-2.5 py-1.5 text-xs sm:flex"
+      title={
+        usage.hasReal
+          ? `Reported usage this chat — prompt ${usage.input}, completion ${usage.output} tokens. Next request ≈ ${contextEst} input tokens (estimated).`
+          : `Estimated context for the next request: ~${contextEst} tokens. Real usage appears after your first reply.`
+      }
+    >
+      <Gauge size={14} className="text-accent-soft" />
+      {usage.hasReal ? (
+        <span className="font-mono text-ink-muted">
+          <span className="text-ink">{formatTokens(usage.input + usage.output)}</span> tok
+          <span className="text-ink-faint"> · ~{formatTokens(contextEst)} ctx</span>
+        </span>
+      ) : (
+        <span className="font-mono text-ink-muted">~{formatTokens(contextEst)} ctx</span>
+      )}
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { ChatMessage } from "@/lib/types";
 import { Markdown } from "./Markdown";
 import { useStore } from "@/lib/store";
+import { formatTokens } from "@/lib/tokens";
 import {
   User,
   Sparkles,
@@ -56,6 +57,15 @@ export function MessageItem({
             </span>
             {message.model && (
               <span className="font-mono text-[11px]">{message.model}</span>
+            )}
+            {message.usage && (
+              <span
+                className="font-mono text-[11px] text-ink-faint"
+                title={`Prompt ${message.usage.input} · Completion ${message.usage.output} tokens`}
+              >
+                ↑{formatTokens(message.usage.input)} ↓
+                {formatTokens(message.usage.output)} tok
+              </span>
             )}
           </div>
 

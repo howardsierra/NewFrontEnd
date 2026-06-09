@@ -11,6 +11,12 @@ import {
   DEFAULT_PARAMS,
   ModelInfo,
 } from "./types";
+import { PresetDraft } from "./sillytavern";
+
+export interface SavedPreset extends PresetDraft {
+  id: string;
+  updatedAt: number;
+}
 
 interface AppState {
   providers: ProviderConfig[];
@@ -18,6 +24,7 @@ interface AppState {
   activeId: string | null;
   /** Cached model lists per provider id. Not persisted long-term but kept in memory. */
   modelCache: Record<string, ModelInfo[]>;
+  presets: SavedPreset[];
   hydrated: boolean;
 
   // provider actions
@@ -41,6 +48,10 @@ interface AppState {
   removeMessage: (convId: string, msgId: string) => void;
 
   setModelCache: (providerId: string, models: ModelInfo[]) => void;
+
+  // preset actions
+  savePreset: (draft: PresetDraft, id?: string) => string;
+  removePreset: (id: string) => void;
 }
 
 function makeConversation(): Conversation {
@@ -64,6 +75,7 @@ export const useStore = create<AppState>()(
       conversations: [],
       activeId: null,
       modelCache: {},
+      presets: [],
       hydrated: false,
 
       addProvider: (p) => {
@@ -178,6 +190,25 @@ export const useStore = create<AppState>()(
 
       setModelCache: (providerId, models) =>
         set((s) => ({ modelCache: { ...s.modelCache, [providerId]: models } })),
+
+      savePreset: (draft, id) => {
+        const now = Date.now();
+        if (id) {
+          set((s) => ({
+            presets: s.presets.map((p) =>
+              p.id === id ? { ...draft, id, updatedAt: now } : p
+            ),
+          }));
+          return id;
+        }
+        const newId = nanoid();
+        set((s) => ({
+          presets: [{ ...draft, id: newId, updatedAt: now }, ...s.presets],
+        }));
+        return newId;
+      },
+      removePreset: (id) =>
+        set((s) => ({ presets: s.presets.filter((p) => p.id !== id) })),
     }),
     {
       name: "newfrontend-store",
@@ -186,6 +217,7 @@ export const useStore = create<AppState>()(
         providers: s.providers,
         conversations: s.conversations,
         activeId: s.activeId,
+        presets: s.presets,
       }),
       onRehydrateStorage: () => (state) => {
         if (state) state.hydrated = true;

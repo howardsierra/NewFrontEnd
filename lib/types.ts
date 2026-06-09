@@ -52,7 +52,20 @@ export interface ChatMessage {
   /** True while the assistant message is still streaming. */
   streaming?: boolean;
   error?: string;
+  /** Real token usage reported by the provider, when available. */
+  usage?: TokenUsage;
 }
+
+export interface TokenUsage {
+  input: number;
+  output: number;
+}
+
+/** Events streamed from /api/chat to the client (NDJSON, one per line). */
+export type StreamEvent =
+  | { t: "d"; v: string } // text delta
+  | { t: "u"; in: number; out: number } // usage
+  | { t: "e"; v: string }; // error
 
 export interface GenerationParams {
   temperature: number;

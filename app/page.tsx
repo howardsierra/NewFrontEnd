@@ -5,6 +5,7 @@ import { useStore } from "@/lib/store";
 import { Sidebar } from "@/components/Sidebar";
 import { ChatView } from "@/components/ChatView";
 import { SettingsModal } from "@/components/SettingsModal";
+import { PresetBuilder } from "@/components/PresetBuilder";
 import { Sparkles } from "lucide-react";
 import clsx from "clsx";
 
@@ -17,6 +18,7 @@ export default function Page() {
   const providers = useStore((s) => s.providers);
 
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [presetsOpen, setPresetsOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Ensure there's always an active conversation once hydrated.
@@ -56,7 +58,10 @@ export default function Page() {
     <div className="flex h-screen overflow-hidden">
       {/* Desktop sidebar */}
       <div className="hidden lg:block">
-        <Sidebar onOpenSettings={() => setSettingsOpen(true)} />
+        <Sidebar
+          onOpenSettings={() => setSettingsOpen(true)}
+          onOpenPresets={() => setPresetsOpen(true)}
+        />
       </div>
 
       {/* Mobile sidebar drawer */}
@@ -84,6 +89,7 @@ export default function Page() {
               setSettingsOpen(true);
               setSidebarOpen(false);
             }}
+            onOpenPresets={() => setPresetsOpen(true)}
             onClose={() => setSidebarOpen(false)}
           />
         </div>
@@ -101,6 +107,7 @@ export default function Page() {
       </main>
 
       {settingsOpen && <SettingsModal onClose={() => setSettingsOpen(false)} />}
+      {presetsOpen && <PresetBuilder onClose={() => setPresetsOpen(false)} />}
     </div>
   );
 }

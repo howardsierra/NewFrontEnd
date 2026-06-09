@@ -49,17 +49,18 @@ export async function POST(request: NextRequest) {
   const flavor = call.flavor;
   const body = upstream.body;
 
+  // NDJSON stream: one JSON event per line. See StreamEvent in lib/types.
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
+      const emit = (obj: unknown) =>
+        controller.enqueue(encoder.encode(JSON.stringify(obj) + "\n"));
       try {
-        for await (const delta of parseSse(body, flavor)) {
-          controller.enqueue(encoder.encode(delta));
+        for await (const ev of parseSse(body, flavor)) {
+          if (ev.type === "text") emit({ t: "d", v: ev.text });
+          else emit({ t: "u", in: ev.input, out: ev.output });
         }
       } catch (e: any) {
-        // Surface mid-stream errors inline so the user sees them.
-        controller.enqueue(
-          encoder.encode(`\n\n[stream error] ${e.message || "interrupted"}`)
-        );
+        emit({ t: "e", v: e.message || "stream interrupted" });
       } finally {
         controller.close();
       }
@@ -68,7 +69,7 @@ export async function POST(request: NextRequest) {
 
   return new Response(stream, {
     headers: {
-      "Content-Type": "text/plain; charset=utf-8",
+      "Content-Type": "application/x-ndjson; charset=utf-8",
       "Cache-Control": "no-cache, no-transform",
       "X-Accel-Buffering": "no",
     },

@@ -11,14 +11,17 @@ import {
   Pencil,
   Check,
   X,
+  Wand2,
 } from "lucide-react";
 import clsx from "clsx";
 
 export function Sidebar({
   onOpenSettings,
+  onOpenPresets,
   onClose,
 }: {
   onOpenSettings: () => void;
+  onOpenPresets: () => void;
   onClose?: () => void;
 }) {
   const conversations = useStore((s) => s.conversations);
@@ -141,7 +144,17 @@ export function Sidebar({
         })}
       </div>
 
-      <div className="border-t border-line p-3">
+      <div className="space-y-0.5 border-t border-line p-3">
+        <button
+          className="btn-ghost w-full justify-start"
+          onClick={() => {
+            onOpenPresets();
+            onClose?.();
+          }}
+        >
+          <Wand2 size={16} />
+          SillyTavern presets
+        </button>
         <button className="btn-ghost w-full justify-start" onClick={onOpenSettings}>
           <Settings size={16} />
           Providers & keys
