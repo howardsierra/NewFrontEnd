@@ -134,7 +134,7 @@ export function PresetBuilder({ onClose }: { onClose: () => void }) {
           <Wand2 size={18} className="text-accent-soft" />
           <h2 className="text-base font-semibold">SillyTavern Preset Builder</h2>
           <span className="hidden text-xs text-ink-faint sm:inline">
-            Chat Completion preset · imports directly into SillyTavern
+            Chat Completion preset · SillyTavern 1.18.0
           </span>
           <div className="ml-auto flex items-center gap-1.5">
             <button
@@ -338,9 +338,9 @@ function AdvancedTab({ draft, set }: { draft: PresetDraft; set: SetFn }) {
   return (
     <>
       <div className="grid grid-cols-2 gap-3">
-        <Toggle label="Wrap in quotes" value={draft.wrapInQuotes} onChange={(v) => set("wrapInQuotes", v)} />
+        <Toggle label="Use system prompt" value={draft.useSysprompt} onChange={(v) => set("useSysprompt", v)} />
         <Toggle label="Squash system messages" value={draft.squashSystemMessages} onChange={(v) => set("squashSystemMessages", v)} />
-        <Toggle label="Claude: use system prompt" value={draft.claudeUseSysprompt} onChange={(v) => set("claudeUseSysprompt", v)} />
+        <Toggle label="Media inlining (images)" value={draft.mediaInlining} onChange={(v) => set("mediaInlining", v)} />
       </div>
       <Field label="Assistant prefill" hint="Forces the reply to begin with this text (Claude/OpenAI).">
         <textarea className="input resize-y font-mono text-[13px]" rows={2} value={draft.assistantPrefill} onChange={(e) => set("assistantPrefill", e.target.value)} />

@@ -1,10 +1,10 @@
 // SillyTavern "Chat Completion" preset builder.
 //
-// Produces JSON that imports directly via SillyTavern's
+// Targets SillyTavern 1.18.0. Produces JSON that imports directly via
 // AI Response Configuration → Chat Completion Presets → Import.
 // The editable surface here is the subset people actually tune; the exporter
-// fills in the full prompt-manager structure (markers + prompt_order) so the
-// result is a valid, ready-to-import preset.
+// fills in the full prompt-manager structure (markers + dual prompt_order) so
+// the result is a valid, ready-to-import preset.
 
 import type { ProviderKind } from "./types";
 
@@ -47,10 +47,10 @@ export interface PresetDraft {
 
   // Behavior
   assistantPrefill: string;
-  wrapInQuotes: boolean;
   namesBehavior: number; // 0 none, 1 default, 2 completion, 3 content
   squashSystemMessages: boolean;
-  claudeUseSysprompt: boolean;
+  useSysprompt: boolean; // ST 1.18: generalized "use system prompt" toggle
+  mediaInlining: boolean; // ST 1.18: send images/media inline to the model
 
   // Provenance (for the matching ST source/model fields)
   source: ProviderKind;
@@ -64,7 +64,7 @@ export const DEFAULT_DRAFT: PresetDraft = {
   presencePenalty: 0,
   topP: 1,
   topK: 0,
-  topA: 1,
+  topA: 0,
   minP: 0,
   repetitionPenalty: 1,
   maxContext: 16384,
@@ -85,13 +85,13 @@ export const DEFAULT_DRAFT: PresetDraft = {
   groupNudgePrompt:
     "[Write the next reply only as {{char}}.]",
   wiFormat: "{0}",
-  scenarioFormat: "[Circumstances and context of the dialogue: {{scenario}}]",
-  personalityFormat: "[{{char}}'s personality: {{personality}}]",
+  scenarioFormat: "{{scenario}}",
+  personalityFormat: "{{personality}}",
   assistantPrefill: "",
-  wrapInQuotes: false,
   namesBehavior: 0,
   squashSystemMessages: false,
-  claudeUseSysprompt: false,
+  useSysprompt: false,
+  mediaInlining: true,
   source: "openai",
   model: "",
 };
@@ -103,8 +103,22 @@ const SOURCE_MAP: Record<ProviderKind, string> = {
   custom: "custom",
 };
 
-/** Standard prompt-manager order for a fresh preset. */
-const PROMPT_ORDER = [
+// ST 1.18 ships two prompt_order entries. The global slot (100000) omits
+// personaDescription; the default-character slot (100001) includes it.
+const ORDER_GLOBAL = [
+  "main",
+  "worldInfoBefore",
+  "charDescription",
+  "charPersonality",
+  "scenario",
+  "enhanceDefinitions",
+  "nsfw",
+  "worldInfoAfter",
+  "dialogueExamples",
+  "chatHistory",
+  "jailbreak",
+];
+const ORDER_DEFAULT = [
   "main",
   "worldInfoBefore",
   "personaDescription",
@@ -119,16 +133,12 @@ const PROMPT_ORDER = [
   "jailbreak",
 ];
 
-const MARKERS: Array<{ identifier: string; name: string }> = [
-  { identifier: "worldInfoBefore", name: "World Info (before)" },
-  { identifier: "worldInfoAfter", name: "World Info (after)" },
-  { identifier: "charDescription", name: "Char Description" },
-  { identifier: "charPersonality", name: "Char Personality" },
-  { identifier: "scenario", name: "Scenario" },
-  { identifier: "personaDescription", name: "Persona Description" },
-  { identifier: "dialogueExamples", name: "Chat Examples" },
-  { identifier: "chatHistory", name: "Chat History" },
-];
+const makeOrder = (identifiers: string[]) =>
+  identifiers.map((identifier) => ({
+    identifier,
+    // enhanceDefinitions is disabled by default in ST.
+    enabled: identifier !== "enhanceDefinitions",
+  }));
 
 /** Build a full, importable SillyTavern Chat Completion preset object. */
 export function buildPreset(d: PresetDraft): Record<string, unknown> {
@@ -159,16 +169,17 @@ export function buildPreset(d: PresetDraft): Record<string, unknown> {
   const prompts = [
     textPrompt("main", "Main Prompt", d.mainPrompt),
     textPrompt("nsfw", "Auxiliary Prompt", d.auxiliaryPrompt),
+    markerPrompt("dialogueExamples", "Chat Examples"),
     textPrompt("jailbreak", "Post-History Instructions", d.postHistoryPrompt),
+    markerPrompt("chatHistory", "Chat History"),
+    markerPrompt("worldInfoAfter", "World Info (after)"),
+    markerPrompt("worldInfoBefore", "World Info (before)"),
     textPrompt("enhanceDefinitions", "Enhance Definitions", d.enhanceDefinitions),
-    ...MARKERS.map((m) => markerPrompt(m.identifier, m.name)),
+    markerPrompt("charDescription", "Char Description"),
+    markerPrompt("charPersonality", "Char Personality"),
+    markerPrompt("scenario", "Scenario"),
+    markerPrompt("personaDescription", "Persona Description"),
   ];
-
-  const order = PROMPT_ORDER.map((identifier) => ({
-    identifier,
-    // enhanceDefinitions is off by default in ST.
-    enabled: identifier !== "enhanceDefinitions",
-  }));
 
   const source = SOURCE_MAP[d.source];
 
@@ -178,6 +189,12 @@ export function buildPreset(d: PresetDraft): Record<string, unknown> {
     claude_model: d.source === "anthropic" ? d.model : "claude-3-5-sonnet-20241022",
     openrouter_model: d.source === "openrouter" ? d.model : "openai/gpt-4o",
     custom_model: d.source === "custom" ? d.model : "",
+    custom_url: "",
+    custom_include_body: "",
+    custom_exclude_body: "",
+    custom_include_headers: "",
+    reverse_proxy: "",
+    proxy_password: "",
 
     temperature: d.temperature,
     frequency_penalty: d.frequencyPenalty,
@@ -192,8 +209,9 @@ export function buildPreset(d: PresetDraft): Record<string, unknown> {
     openai_max_tokens: d.maxTokens,
     max_context_unlocked: d.maxContext > 100000,
     stream_openai: d.stream,
+    seed: -1,
+    n: 1,
 
-    wrap_in_quotes: d.wrapInQuotes,
     names_behavior: d.namesBehavior,
     send_if_empty: "",
     impersonation_prompt: d.impersonationPrompt,
@@ -205,20 +223,23 @@ export function buildPreset(d: PresetDraft): Record<string, unknown> {
     wi_format: d.wiFormat,
     scenario_format: d.scenarioFormat,
     personality_format: d.personalityFormat,
+    bias_preset_selected: "Default (none)",
 
     assistant_prefill: d.assistantPrefill,
-    human_sysprompt_message: "",
-    claude_use_sysprompt: d.claudeUseSysprompt,
-    use_makersuite_sysprompt: true,
+    assistant_impersonation: "",
+    use_sysprompt: d.useSysprompt,
     squash_system_messages: d.squashSystemMessages,
-    image_inlining: true,
+    media_inlining: d.mediaInlining,
+    continue_prefill: false,
     continue_postfix: " ",
-    bias_preset_selected: "Default (none)",
-    show_thoughts: true,
-    reasoning_effort: "medium",
+    show_external_models: false,
+    bypass_status_check: false,
 
     prompts,
-    prompt_order: [{ character_id: 100001, order }],
+    prompt_order: [
+      { character_id: 100000, order: makeOrder(ORDER_GLOBAL) },
+      { character_id: 100001, order: makeOrder(ORDER_DEFAULT) },
+    ],
   };
 }
 
@@ -251,10 +272,14 @@ export function parsePreset(json: any, fallbackName = "Imported Preset"): Preset
   d.scenarioFormat = str(json.scenario_format, d.scenarioFormat);
   d.personalityFormat = str(json.personality_format, d.personalityFormat);
   d.assistantPrefill = str(json.assistant_prefill, d.assistantPrefill);
-  d.wrapInQuotes = bool(json.wrap_in_quotes, d.wrapInQuotes);
   d.namesBehavior = num(json.names_behavior, d.namesBehavior);
   d.squashSystemMessages = bool(json.squash_system_messages, d.squashSystemMessages);
-  d.claudeUseSysprompt = bool(json.claude_use_sysprompt, d.claudeUseSysprompt);
+  // Accept both the 1.18 name and the older Claude-specific key on import.
+  d.useSysprompt = bool(
+    json.use_sysprompt ?? json.claude_use_sysprompt,
+    d.useSysprompt
+  );
+  d.mediaInlining = bool(json.media_inlining ?? json.image_inlining, d.mediaInlining);
 
   // Pull the editable text prompts out of the prompt-manager array.
   if (Array.isArray(json.prompts)) {

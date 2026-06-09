@@ -21,6 +21,12 @@ your keys directly when you'd rather skip the web platforms.
   Images are sent as vision input to multimodal models. Drag-and-drop supported.
 - **Live model lists** — fetched per-provider, searchable, with manual model-id
   entry as a fallback.
+- **SillyTavern preset builder** — compose, import, and export **Chat Completion
+  presets** that drop straight into **SillyTavern 1.18.0** (correct prompt-manager
+  markers, dual `prompt_order`, and 1.18 field names). Save a local library and
+  draft prompt text with the AI.
+- **Token usage** — real prompt/completion counts from the provider stream, per
+  message, with a running conversation total and live context estimate.
 - **Per-conversation controls** — system prompt, temperature, top-p, max tokens.
 - **Conversation management** — multiple chats, rename, regenerate, delete, all
   persisted locally.
@@ -90,10 +96,8 @@ lib/
 
 ## Roadmap
 
-- **SillyTavern preset builder** — a dedicated panel to compose, preview, and
-  export presets as importable JSON.
+- Per-message cost estimates (price tables per model).
 - Custom provider presets/import-export.
-- Token usage & cost estimates per message.
 - Prompt/snippet library.
 
 ## Security notes
