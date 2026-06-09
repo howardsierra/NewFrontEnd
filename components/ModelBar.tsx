@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import clsx from "clsx";
 import { conversationUsage, estimateContextTokens, formatTokens } from "@/lib/tokens";
+import { conversationCost, formatCost } from "@/lib/pricing";
 
 export function ModelBar({
   conv,
@@ -98,14 +99,17 @@ export function ModelBar({
 function TokenMeter({ conv }: { conv: Conversation }) {
   const usage = conversationUsage(conv);
   const contextEst = estimateContextTokens(conv);
+  const cost = conversationCost(conv);
 
   return (
     <div
       className="hidden items-center gap-2 rounded-lg border border-line bg-bg-elevated px-2.5 py-1.5 text-xs sm:flex"
       title={
         usage.hasReal
-          ? `Reported usage this chat — prompt ${usage.input}, completion ${usage.output} tokens. Next request ≈ ${contextEst} input tokens (estimated).`
-          : `Estimated context for the next request: ~${contextEst} tokens. Real usage appears after your first reply.`
+          ? `Reported usage this chat — prompt ${usage.input}, completion ${usage.output} tokens. ${
+              cost.hasCost ? `Estimated spend ${formatCost(cost.total)}. ` : ""
+            }Next request ≈ ${contextEst} input tokens (estimated).`
+          : `Estimated context for the next request: ~${contextEst} tokens. Real usage and cost appear after your first reply.`
       }
     >
       <Gauge size={14} className="text-accent-soft" />
@@ -116,6 +120,11 @@ function TokenMeter({ conv }: { conv: Conversation }) {
         </span>
       ) : (
         <span className="font-mono text-ink-muted">~{formatTokens(contextEst)} ctx</span>
+      )}
+      {cost.hasCost && (
+        <span className="border-l border-line pl-2 font-mono text-green-400/80">
+          {formatCost(cost.total)}
+        </span>
       )}
     </div>
   );
@@ -245,11 +254,14 @@ function ModelPicker({
                 }}
               >
                 <span className="truncate font-mono text-[13px]">{m.id}</span>
-                {m.contextLength ? (
-                  <span className="shrink-0 text-[10px] text-ink-faint">
-                    {Math.round(m.contextLength / 1000)}k
-                  </span>
-                ) : null}
+                <span className="flex shrink-0 items-center gap-1.5 text-[10px] text-ink-faint">
+                  {m.pricing && (
+                    <span className="text-green-400/70" title="USD per 1M tokens (in / out)">
+                      ${trimPrice(m.pricing.input)}/${trimPrice(m.pricing.output)}
+                    </span>
+                  )}
+                  {m.contextLength ? <span>{Math.round(m.contextLength / 1000)}k</span> : null}
+                </span>
               </button>
             ))}
           </div>
@@ -349,6 +361,13 @@ function Slider({
       />
     </div>
   );
+}
+
+/** Trim a per-1M price to a compact label (e.g. 2.5, 0.15, 75). */
+function trimPrice(n: number): string {
+  if (n >= 10) return String(Math.round(n));
+  if (n >= 1) return n.toFixed(1).replace(/\.0$/, "");
+  return n.toFixed(2).replace(/0$/, "");
 }
 
 /** Lightweight click-outside dropdown. */

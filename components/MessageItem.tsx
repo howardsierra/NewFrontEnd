@@ -5,6 +5,7 @@ import type { ChatMessage } from "@/lib/types";
 import { Markdown } from "./Markdown";
 import { useStore } from "@/lib/store";
 import { formatTokens } from "@/lib/tokens";
+import { formatCost } from "@/lib/pricing";
 import {
   User,
   Sparkles,
@@ -65,6 +66,14 @@ export function MessageItem({
               >
                 ↑{formatTokens(message.usage.input)} ↓
                 {formatTokens(message.usage.output)} tok
+              </span>
+            )}
+            {typeof message.cost === "number" && (
+              <span
+                className="font-mono text-[11px] text-green-400/70"
+                title="Estimated cost for this message"
+              >
+                {formatCost(message.cost)}
               </span>
             )}
           </div>

@@ -25,8 +25,10 @@ your keys directly when you'd rather skip the web platforms.
   presets** that drop straight into **SillyTavern 1.18.0** (correct prompt-manager
   markers, dual `prompt_order`, and 1.18 field names). Save a local library and
   draft prompt text with the AI.
-- **Token usage** — real prompt/completion counts from the provider stream, per
-  message, with a running conversation total and live context estimate.
+- **Token usage & cost** — real prompt/completion counts from the provider
+  stream, per message, with a running conversation total and live context
+  estimate. Per-message cost in USD using **live OpenRouter pricing** and a
+  curated OpenAI/Anthropic price table; per-model prices shown in the picker.
 - **Per-conversation controls** — system prompt, temperature, top-p, max tokens.
 - **Conversation management** — multiple chats, rename, regenerate, delete, all
   persisted locally.
@@ -96,9 +98,9 @@ lib/
 
 ## Roadmap
 
-- Per-message cost estimates (price tables per model).
 - Custom provider presets/import-export.
 - Prompt/snippet library.
+- Editable/override pricing for custom and local models.
 
 ## Security notes
 

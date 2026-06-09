@@ -22,6 +22,8 @@ export interface ModelInfo {
   label?: string;
   /** Context window in tokens, when known. */
   contextLength?: number;
+  /** Price in USD per 1M tokens, when known (e.g. from OpenRouter). */
+  pricing?: { input: number; output: number };
 }
 
 /** A piece of content attached to a user message. */
@@ -54,6 +56,8 @@ export interface ChatMessage {
   error?: string;
   /** Real token usage reported by the provider, when available. */
   usage?: TokenUsage;
+  /** Estimated cost in USD for this message, when pricing is known. */
+  cost?: number;
 }
 
 export interface TokenUsage {

@@ -52,10 +52,22 @@ function normalizeModels(data: any): ModelInfo[] {
     .map((m): ModelInfo | null => {
       const id = m.id ?? m.name;
       if (!id) return null;
+      // OpenRouter reports pricing in USD *per token* as strings; normalize to
+      // USD per 1M tokens. Other providers don't return pricing here.
+      let pricing: ModelInfo["pricing"];
+      const p = m.pricing;
+      if (p && (p.prompt != null || p.completion != null)) {
+        const inPer = parseFloat(p.prompt ?? "0") * 1e6;
+        const outPer = parseFloat(p.completion ?? "0") * 1e6;
+        if (Number.isFinite(inPer) && Number.isFinite(outPer) && (inPer > 0 || outPer > 0)) {
+          pricing = { input: inPer, output: outPer };
+        }
+      }
       return {
         id,
         label: m.name && m.name !== id ? m.name : undefined,
         contextLength: m.context_length ?? m.context_window ?? m.top_provider?.context_length,
+        pricing,
       };
     })
     .filter((m): m is ModelInfo => m !== null);

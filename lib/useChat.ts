@@ -5,6 +5,7 @@ import { useStore, newMessage } from "./store";
 import { attachmentToPrompt } from "./files";
 import type { Attachment, ChatRequest, Conversation } from "./types";
 import { PROVIDER_META } from "./providers";
+import { resolvePrice, costFor } from "./pricing";
 
 /** Build the provider-agnostic message array from a conversation's history. */
 function buildMessages(conv: Conversation): ChatRequest["messages"] {
@@ -110,11 +111,13 @@ export function useChat() {
         if (ev.t === "d") {
           useStore.getState().appendToMessage(convId, assistant.id, ev.v);
         } else if (ev.t === "u") {
-          useStore
-            .getState()
-            .patchMessage(convId, assistant.id, {
-              usage: { input: ev.in, output: ev.out },
-            });
+          const usage = { input: ev.in, output: ev.out };
+          const cachedModels = useStore.getState().modelCache[provider.id];
+          const price = resolvePrice(conv.model, provider.kind, cachedModels);
+          useStore.getState().patchMessage(convId, assistant.id, {
+            usage,
+            cost: price ? costFor(usage, price) : undefined,
+          });
         } else if (ev.t === "e") {
           streamError = ev.v;
         }
