@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useStore } from "@/lib/store";
-import { PROVIDER_META } from "@/lib/providers";
+import { PROVIDER_META, CUSTOM_PRESETS, CustomPreset } from "@/lib/providers";
 import type { ProviderConfig, ProviderKind } from "@/lib/types";
 import {
   X,
@@ -13,24 +13,46 @@ import {
   ExternalLink,
   KeyRound,
   ShieldCheck,
+  PlugZap,
+  Check,
+  AlertTriangle,
+  Loader2,
+  ChevronDown,
+  Settings2,
 } from "lucide-react";
 import clsx from "clsx";
 
-const ADDABLE: ProviderKind[] = ["openrouter", "anthropic", "openai", "custom"];
+const NATIVE: ProviderKind[] = ["openrouter", "anthropic", "openai"];
 
 export function SettingsModal({ onClose }: { onClose: () => void }) {
   const providers = useStore((s) => s.providers);
   const addProvider = useStore((s) => s.addProvider);
+  const [customMenu, setCustomMenu] = useState(false);
 
-  const quickAdd = (kind: ProviderKind) => {
+  const addNative = (kind: ProviderKind) => {
     const meta = PROVIDER_META[kind];
     addProvider({
       kind,
       label: meta.label,
       apiKey: "",
-      baseUrl: kind === "custom" ? "" : meta.baseUrl,
+      baseUrl: meta.baseUrl,
+      keysUrl: meta.keysUrl,
       enabled: true,
     });
+  };
+
+  const addCustom = (preset: CustomPreset) => {
+    addProvider({
+      kind: "custom",
+      label: preset.id === "blank" ? "Custom provider" : preset.label,
+      apiKey: "",
+      baseUrl: preset.baseUrl,
+      defaultModel: preset.defaultModel,
+      hint: preset.hint,
+      keysUrl: preset.keysUrl,
+      enabled: true,
+    });
+    setCustomMenu(false);
   };
 
   return (
@@ -55,7 +77,7 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
           </p>
         </div>
 
-        <div className="max-h-[60vh] space-y-3 overflow-y-auto p-5">
+        <div className="max-h-[58vh] space-y-3 overflow-y-auto p-5">
           {providers.length === 0 && (
             <p className="py-4 text-center text-sm text-ink-faint">
               Add a provider to get started.
@@ -71,10 +93,10 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
             Add provider
           </p>
           <div className="flex flex-wrap gap-2">
-            {ADDABLE.map((kind) => (
+            {NATIVE.map((kind) => (
               <button
                 key={kind}
-                onClick={() => quickAdd(kind)}
+                onClick={() => addNative(kind)}
                 className="btn-soft"
                 style={{ borderColor: `${PROVIDER_META[kind].accent}55` }}
               >
@@ -82,6 +104,45 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
                 {PROVIDER_META[kind].label}
               </button>
             ))}
+
+            {/* OpenAI-compatible custom presets */}
+            <div className="relative">
+              <button
+                onClick={() => setCustomMenu((v) => !v)}
+                className="btn-soft"
+              >
+                <Plus size={14} />
+                OpenAI-compatible
+                <ChevronDown size={13} className="opacity-60" />
+              </button>
+              {customMenu && (
+                <>
+                  <div
+                    className="fixed inset-0 z-10"
+                    onClick={() => setCustomMenu(false)}
+                  />
+                  <div className="absolute bottom-full z-20 mb-1.5 max-h-72 w-64 overflow-y-auto rounded-xl border border-line bg-bg-panel p-1 shadow-2xl animate-fade-in">
+                    <p className="px-3 py-1.5 text-[11px] text-ink-faint">
+                      Pick a service — base URL is prefilled, just add your key.
+                    </p>
+                    {CUSTOM_PRESETS.map((preset) => (
+                      <button
+                        key={preset.id}
+                        onClick={() => addCustom(preset)}
+                        className="flex w-full flex-col items-start gap-0.5 rounded-lg px-3 py-2 text-left text-sm hover:bg-bg-elevated"
+                      >
+                        <span className="text-ink">{preset.label}</span>
+                        {preset.baseUrl && (
+                          <span className="truncate font-mono text-[10px] text-ink-faint">
+                            {preset.baseUrl}
+                          </span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -89,19 +150,80 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
   );
 }
 
+type TestState =
+  | { status: "idle" }
+  | { status: "testing" }
+  | { status: "ok"; count: number }
+  | { status: "error"; message: string };
+
 function ProviderRow({ provider }: { provider: ProviderConfig }) {
   const updateProvider = useStore((s) => s.updateProvider);
   const removeProvider = useStore((s) => s.removeProvider);
+  const setModelCache = useStore((s) => s.setModelCache);
   const [show, setShow] = useState(false);
+  const [test, setTest] = useState<TestState>({ status: "idle" });
+  const [showHeaders, setShowHeaders] = useState(
+    !!provider.headers && Object.keys(provider.headers).length > 0
+  );
+  const [headersText, setHeadersText] = useState(
+    provider.headers ? JSON.stringify(provider.headers, null, 2) : ""
+  );
+  const [headersError, setHeadersError] = useState<string | null>(null);
+
   const meta = PROVIDER_META[provider.kind];
+  const isCustom = provider.kind === "custom";
+  const hint = provider.hint ?? meta.hint;
+  const keysUrl = provider.keysUrl ?? meta.keysUrl;
+
+  const commitHeaders = (text: string) => {
+    setHeadersText(text);
+    if (!text.trim()) {
+      setHeadersError(null);
+      updateProvider(provider.id, { headers: undefined });
+      return;
+    }
+    try {
+      const parsed = JSON.parse(text);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        const headers: Record<string, string> = {};
+        for (const [k, v] of Object.entries(parsed)) headers[k] = String(v);
+        setHeadersError(null);
+        updateProvider(provider.id, { headers });
+      } else {
+        setHeadersError("Must be a JSON object.");
+      }
+    } catch {
+      setHeadersError("Invalid JSON.");
+    }
+  };
+
+  const testConnection = async () => {
+    setTest({ status: "testing" });
+    try {
+      const res = await fetch("/api/models", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          kind: provider.kind,
+          apiKey: provider.apiKey,
+          baseUrl: provider.baseUrl,
+          headers: provider.headers,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      const models = data.models ?? [];
+      setModelCache(provider.id, models);
+      setTest({ status: "ok", count: models.length });
+    } catch (e: any) {
+      setTest({ status: "error", message: e.message || "Connection failed" });
+    }
+  };
 
   return (
     <div className="rounded-lg border border-line bg-bg-subtle/60 p-4">
       <div className="mb-3 flex items-center gap-2">
-        <span
-          className="h-2.5 w-2.5 rounded-full"
-          style={{ background: meta.accent }}
-        />
+        <span className="h-2.5 w-2.5 rounded-full" style={{ background: meta.accent }} />
         <input
           value={provider.label}
           onChange={(e) => updateProvider(provider.id, { label: e.target.value })}
@@ -125,14 +247,24 @@ function ProviderRow({ provider }: { provider: ProviderConfig }) {
         </button>
       </div>
 
-      <p className="mb-2 text-xs text-ink-faint">{meta.hint}</p>
+      <p className="mb-2 text-xs text-ink-faint">{hint}</p>
 
       <div className="space-y-2">
+        {isCustom && (
+          <input
+            value={provider.baseUrl ?? ""}
+            placeholder="Base URL, e.g. https://api.groq.com/openai/v1"
+            onChange={(e) => updateProvider(provider.id, { baseUrl: e.target.value })}
+            className="input font-mono"
+            spellCheck={false}
+          />
+        )}
+
         <div className="relative">
           <input
             type={show ? "text" : "password"}
             value={provider.apiKey}
-            placeholder="API key"
+            placeholder={isCustom ? "API key (leave blank for local servers)" : "API key"}
             onChange={(e) => updateProvider(provider.id, { apiKey: e.target.value })}
             className="input pr-10 font-mono"
             spellCheck={false}
@@ -148,27 +280,77 @@ function ProviderRow({ provider }: { provider: ProviderConfig }) {
           </button>
         </div>
 
-        {provider.kind === "custom" && (
-          <input
-            value={provider.baseUrl ?? ""}
-            placeholder="Base URL, e.g. http://localhost:1234/v1"
-            onChange={(e) => updateProvider(provider.id, { baseUrl: e.target.value })}
-            className="input font-mono"
-            spellCheck={false}
-          />
+        {isCustom && (
+          <div>
+            <button
+              className="flex items-center gap-1.5 text-xs text-ink-faint hover:text-ink-muted"
+              onClick={() => setShowHeaders((v) => !v)}
+            >
+              <Settings2 size={13} />
+              Custom headers {showHeaders ? "▾" : "▸"}
+            </button>
+            {showHeaders && (
+              <>
+                <textarea
+                  value={headersText}
+                  onChange={(e) => commitHeaders(e.target.value)}
+                  placeholder={'{\n  "api-key": "..."\n}'}
+                  rows={3}
+                  className="input mt-1.5 resize-y font-mono text-[12px]"
+                  spellCheck={false}
+                />
+                {headersError && (
+                  <p className="mt-1 text-[11px] text-red-400/90">{headersError}</p>
+                )}
+                <p className="mt-1 text-[11px] text-ink-faint">
+                  Extra request headers as JSON (e.g. Azure’s <code>api-key</code>).
+                </p>
+              </>
+            )}
+          </div>
         )}
 
-        <div className="flex items-center justify-between">
-          <input
-            value={provider.defaultModel ?? ""}
-            placeholder="Default model (optional)"
-            onChange={(e) => updateProvider(provider.id, { defaultModel: e.target.value })}
-            className="input mr-2 font-mono"
-            spellCheck={false}
-          />
-          {meta.keysUrl && (
+        <input
+          value={provider.defaultModel ?? ""}
+          placeholder="Default model (optional)"
+          onChange={(e) => updateProvider(provider.id, { defaultModel: e.target.value })}
+          className="input font-mono"
+          spellCheck={false}
+        />
+
+        <div className="flex items-center gap-2 pt-0.5">
+          <button
+            className="btn-soft text-xs"
+            onClick={testConnection}
+            disabled={test.status === "testing" || (isCustom && !provider.baseUrl)}
+          >
+            {test.status === "testing" ? (
+              <Loader2 size={13} className="animate-spin" />
+            ) : (
+              <PlugZap size={13} />
+            )}
+            Test connection
+          </button>
+
+          {test.status === "ok" && (
+            <span className="flex items-center gap-1 text-xs text-green-400">
+              <Check size={13} /> {test.count} models
+            </span>
+          )}
+          {test.status === "error" && (
+            <span
+              className="flex items-center gap-1 truncate text-xs text-red-400"
+              title={test.message}
+            >
+              <AlertTriangle size={13} /> {test.message}
+            </span>
+          )}
+
+          <div className="flex-1" />
+
+          {keysUrl && (
             <a
-              href={meta.keysUrl}
+              href={keysUrl}
               target="_blank"
               rel="noopener noreferrer"
               className={clsx(

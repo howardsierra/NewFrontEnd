@@ -29,7 +29,9 @@ export function ModelBar({
   const setConversationModel = useStore((s) => s.setConversationModel);
 
   const provider = providers.find((p) => p.id === conv.providerId) ?? null;
-  const enabledProviders = providers.filter((p) => p.enabled && p.apiKey);
+  const enabledProviders = providers.filter(
+    (p) => p.enabled && (p.kind === "custom" ? !!p.baseUrl : !!p.apiKey)
+  );
 
   return (
     <div className="flex items-center gap-2 border-b border-line bg-bg-subtle/70 px-3 py-2.5 backdrop-blur">
@@ -153,8 +155,14 @@ function ModelPicker({
   const models = cached && cached.length ? cached : fallback;
 
   const fetchModels = async () => {
-    if (!provider || !provider.apiKey) {
+    if (!provider) return;
+    // Custom/local servers may not need a key; everything else does.
+    if (provider.kind !== "custom" && !provider.apiKey) {
       setError("Add an API key for this provider first.");
+      return;
+    }
+    if (provider.kind === "custom" && !provider.baseUrl) {
+      setError("Set the base URL for this custom provider.");
       return;
     }
     setLoading(true);
@@ -167,6 +175,7 @@ function ModelPicker({
           kind: provider.kind,
           apiKey: provider.apiKey,
           baseUrl: provider.baseUrl,
+          headers: provider.headers,
         }),
       });
       const data = await res.json();
@@ -181,7 +190,10 @@ function ModelPicker({
 
   // Auto-fetch once when a provider is selected and nothing cached.
   useEffect(() => {
-    if (provider && provider.apiKey && !cached) fetchModels();
+    if (!provider || cached) return;
+    const ready =
+      provider.kind === "custom" ? !!provider.baseUrl : !!provider.apiKey;
+    if (ready) fetchModels();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [provider?.id]);
 

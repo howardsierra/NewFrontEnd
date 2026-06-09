@@ -9,6 +9,7 @@ interface Body {
   kind: ProviderKind;
   apiKey: string;
   baseUrl?: string;
+  headers?: Record<string, string>;
 }
 
 export async function POST(request: NextRequest) {
@@ -29,7 +30,11 @@ export async function POST(request: NextRequest) {
   const headers: Record<string, string> =
     body.kind === "anthropic"
       ? { "x-api-key": body.apiKey, "anthropic-version": "2023-06-01" }
-      : { Authorization: `Bearer ${body.apiKey}` };
+      : body.apiKey
+        ? { Authorization: `Bearer ${body.apiKey}` }
+        : {};
+  // Merge user-supplied headers (e.g. Azure `api-key`).
+  if (body.headers) Object.assign(headers, body.headers);
 
   try {
     const res = await fetch(`${base}/models`, { headers });

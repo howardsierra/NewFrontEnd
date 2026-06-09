@@ -57,6 +57,7 @@ export function useChat() {
         provider.kind === "custom"
           ? provider.baseUrl
           : PROVIDER_META[provider.kind].baseUrl,
+      headers: provider.headers,
       model: conv.model,
       params: conv.params,
       messages: buildMessages(conv),

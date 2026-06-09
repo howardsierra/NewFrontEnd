@@ -12,8 +12,13 @@ export interface ProviderConfig {
   apiKey: string;
   /** Base URL. Only required/editable for custom providers. */
   baseUrl?: string;
+  /** Optional extra request headers (e.g. for Azure-style `api-key` auth). */
+  headers?: Record<string, string>;
   /** Optional default model id for this provider. */
   defaultModel?: string;
+  /** Optional UI hint and "get key" link (carried from a custom preset). */
+  hint?: string;
+  keysUrl?: string;
   enabled: boolean;
 }
 
@@ -94,6 +99,7 @@ export interface ChatRequest {
   kind: ProviderKind;
   apiKey: string;
   baseUrl?: string;
+  headers?: Record<string, string>;
   model: string;
   params: GenerationParams;
   messages: Array<{

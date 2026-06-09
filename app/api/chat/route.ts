@@ -13,7 +13,10 @@ export async function POST(request: NextRequest) {
     return json({ error: "Invalid request body." }, 400);
   }
 
-  if (!req.apiKey) return json({ error: "Missing API key." }, 400);
+  // Custom/local OpenAI-compatible servers may be keyless (LM Studio, Ollama).
+  if (!req.apiKey && req.kind !== "custom") {
+    return json({ error: "Missing API key." }, 400);
+  }
   if (!req.model) return json({ error: "No model selected." }, 400);
 
   let call;

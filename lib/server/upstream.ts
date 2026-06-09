@@ -15,8 +15,7 @@ function resolveBaseUrl(req: ChatRequest): string {
   if (req.kind === "custom") {
     const raw = (req.baseUrl || "").trim().replace(/\/+$/, "");
     if (!raw) throw new Error("Custom provider requires a base URL.");
-    // Allow users to omit /v1; only append when there's clearly no version segment.
-    return /\/v\d+$/.test(raw) ? raw : raw;
+    return raw;
   }
   return PROVIDER_META[req.kind].baseUrl;
 }
@@ -39,12 +38,15 @@ function buildOpenAiCall(req: ChatRequest): UpstreamCall {
 
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
-    Authorization: `Bearer ${req.apiKey}`,
   };
+  // A key is optional for local servers (LM Studio / Ollama).
+  if (req.apiKey) headers["Authorization"] = `Bearer ${req.apiKey}`;
   if (req.kind === "openrouter") {
     headers["HTTP-Referer"] = "https://github.com/howardsierra/newfrontend";
     headers["X-Title"] = "NewFrontEnd";
   }
+  // User-supplied headers win (e.g. Azure's `api-key`).
+  if (req.headers) Object.assign(headers, req.headers);
 
   const body: Record<string, unknown> = {
     model: req.model,

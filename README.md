@@ -11,9 +11,13 @@ your keys directly when you'd rather skip the web platforms.
 
 ## Features
 
-- **Four provider types in one UI** — OpenRouter, Anthropic (native Messages
-  API), OpenAI, and unlimited custom OpenAI-compatible endpoints with editable
-  base URLs.
+- **Any OpenAI-compatible API key, in one UI** — OpenRouter, Anthropic (native
+  Messages API), OpenAI, plus unlimited custom OpenAI-compatible providers.
+  One-click presets for Groq, DeepSeek, Mistral, xAI (Grok), Together,
+  Fireworks, DeepInfra, Perplexity, and local servers (LM Studio / Ollama) —
+  the base URL is prefilled, so you just paste your key. Keyless local servers,
+  custom request headers (e.g. Azure’s `api-key`), and a **Test connection**
+  button are all supported.
 - **Streaming chat** with markdown rendering, syntax-highlighted code blocks,
   and one-click copy.
 - **File understanding** — attach and parse HTML, CSS, JavaScript/TypeScript,
@@ -101,9 +105,9 @@ lib/
 
 ## Roadmap
 
-- Custom provider presets/import-export.
 - Snippet placeholder prompts (fill in `{{variables}}` on insert).
 - Editable/override pricing for custom and local models.
+- Export/import the whole provider setup as a portable config file.
 
 ## Security notes
 

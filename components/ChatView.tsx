@@ -37,7 +37,10 @@ export function ChatView({ conv }: { conv: Conversation }) {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const provider = providers.find((p) => p.id === conv.providerId);
-  const ready = !!provider && !!provider.apiKey && !!conv.model;
+  const providerReady = !!provider && (
+    provider.kind === "custom" ? !!provider.baseUrl : !!provider.apiKey
+  );
+  const ready = providerReady && !!conv.model;
 
   // Auto-scroll to bottom as content streams in.
   const lastContent =
