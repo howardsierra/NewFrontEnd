@@ -1,8 +1,9 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { parseFile } from "@/lib/files";
 import type { Attachment } from "@/lib/types";
+import { useStore } from "@/lib/store";
 import {
   Paperclip,
   ArrowUp,
@@ -11,8 +12,16 @@ import {
   FileText,
   ImageIcon,
   Loader2,
+  BookText,
+  CornerDownLeft,
 } from "lucide-react";
 import clsx from "clsx";
+
+interface SlashState {
+  start: number;
+  end: number;
+  query: string;
+}
 
 export function Composer({
   busy,
@@ -29,8 +38,71 @@ export function Composer({
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [parsing, setParsing] = useState(false);
   const [dragOver, setDragOver] = useState(false);
+  const [slash, setSlash] = useState<SlashState | null>(null);
+  const [slashIndex, setSlashIndex] = useState(0);
   const fileInput = useRef<HTMLInputElement>(null);
   const textarea = useRef<HTMLTextAreaElement>(null);
+
+  const snippets = useStore((s) => s.snippets);
+
+  // Snippets matching the current "/query" the user is typing.
+  const slashMatches = slash
+    ? snippets
+        .filter((s) =>
+          slash.query
+            ? s.title.toLowerCase().includes(slash.query.toLowerCase())
+            : true
+        )
+        .slice(0, 6)
+    : [];
+
+  const focusEnd = () => {
+    const el = textarea.current;
+    if (!el) return;
+    el.focus();
+    const end = el.value.length;
+    el.setSelectionRange(end, end);
+    autoGrow();
+  };
+
+  // Library "Insert" appends a snippet to the composer.
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const body = (e as CustomEvent<string>).detail;
+      if (typeof body !== "string") return;
+      setText((prev) => (prev.trim() ? prev + "\n\n" + body : body));
+      setTimeout(focusEnd, 0);
+    };
+    document.addEventListener("insert-snippet", handler);
+    return () => document.removeEventListener("insert-snippet", handler);
+  }, []);
+
+  /** Detect an in-progress "/command" immediately before the caret. */
+  const updateSlash = (value: string, caret: number) => {
+    const before = value.slice(0, caret);
+    const m = before.match(/(?:^|\s)\/([^\s/]*)$/);
+    if (m) {
+      setSlash({ start: caret - m[1].length - 1, end: caret, query: m[1] });
+      setSlashIndex(0);
+    } else {
+      setSlash(null);
+    }
+  };
+
+  const applySnippet = (body: string) => {
+    if (!slash) return;
+    const next = text.slice(0, slash.start) + body + text.slice(slash.end);
+    setText(next);
+    setSlash(null);
+    setTimeout(() => {
+      const el = textarea.current;
+      if (!el) return;
+      const pos = slash.start + body.length;
+      el.focus();
+      el.setSelectionRange(pos, pos);
+      autoGrow();
+    }, 0);
+  };
 
   const handleFiles = async (files: FileList | File[]) => {
     setParsing(true);
@@ -66,7 +138,7 @@ export function Composer({
     <div className="px-3 pb-4 pt-1 sm:px-6">
       <div
         className={clsx(
-          "mx-auto max-w-3xl rounded-2xl border bg-bg-panel/90 p-2 shadow-2xl backdrop-blur transition",
+          "relative mx-auto max-w-3xl rounded-2xl border bg-bg-panel/90 p-2 shadow-2xl backdrop-blur transition",
           dragOver ? "border-accent shadow-glow" : "border-line"
         )}
         onDragOver={(e) => {
@@ -80,6 +152,32 @@ export function Composer({
           if (e.dataTransfer.files.length) handleFiles(e.dataTransfer.files);
         }}
       >
+        {/* Slash-command snippet menu */}
+        {slash && slashMatches.length > 0 && (
+          <div className="absolute bottom-full left-2 right-2 mb-2 overflow-hidden rounded-xl border border-line bg-bg-panel shadow-2xl animate-fade-in">
+            <div className="flex items-center gap-1.5 border-b border-line px-3 py-1.5 text-[11px] text-ink-faint">
+              <BookText size={12} /> Snippets · ↑↓ to navigate · ⏎ to insert
+            </div>
+            {slashMatches.map((s, i) => (
+              <button
+                key={s.id}
+                onMouseEnter={() => setSlashIndex(i)}
+                onClick={() => applySnippet(s.body)}
+                className={clsx(
+                  "flex w-full items-center gap-2 px-3 py-2 text-left text-sm",
+                  i === slashIndex ? "bg-bg-elevated text-ink" : "text-ink-muted"
+                )}
+              >
+                <CornerDownLeft size={13} className="shrink-0 opacity-50" />
+                <span className="shrink-0 font-medium">{s.title}</span>
+                <span className="truncate text-xs text-ink-faint">
+                  {s.body.replace(/\s+/g, " ")}
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
+
         {attachments.length > 0 && (
           <div className="flex flex-wrap gap-2 p-2">
             {attachments.map((a) => (
@@ -138,15 +236,51 @@ export function Composer({
               e.target.value = "";
             }}
           />
+          <button
+            className="btn-ghost shrink-0 px-2"
+            onClick={() => document.dispatchEvent(new CustomEvent("open-snippets"))}
+            title="Prompt & snippet library (or type / )"
+            aria-label="Open snippet library"
+          >
+            <BookText size={18} />
+          </button>
 
           <textarea
             ref={textarea}
             value={text}
             onChange={(e) => {
               setText(e.target.value);
+              updateSlash(e.target.value, e.target.selectionStart ?? e.target.value.length);
               autoGrow();
             }}
+            onClick={(e) => {
+              const el = e.currentTarget;
+              updateSlash(el.value, el.selectionStart ?? el.value.length);
+            }}
             onKeyDown={(e) => {
+              const menuOpen = slash && slashMatches.length > 0;
+              if (menuOpen) {
+                if (e.key === "ArrowDown") {
+                  e.preventDefault();
+                  setSlashIndex((i) => (i + 1) % slashMatches.length);
+                  return;
+                }
+                if (e.key === "ArrowUp") {
+                  e.preventDefault();
+                  setSlashIndex((i) => (i - 1 + slashMatches.length) % slashMatches.length);
+                  return;
+                }
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  applySnippet(slashMatches[slashIndex].body);
+                  return;
+                }
+                if (e.key === "Escape") {
+                  e.preventDefault();
+                  setSlash(null);
+                  return;
+                }
+              }
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
                 submit();
@@ -155,7 +289,7 @@ export function Composer({
             placeholder={
               disabled
                 ? "Add a provider and model to start chatting…"
-                : "Send a message…  (Enter to send, Shift+Enter for newline)"
+                : "Send a message…  (Enter to send · Shift+Enter newline · / for snippets)"
             }
             rows={1}
             className="max-h-[260px] flex-1 resize-none bg-transparent py-2 text-[15px] text-ink outline-none placeholder:text-ink-faint"

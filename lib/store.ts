@@ -18,6 +18,14 @@ export interface SavedPreset extends PresetDraft {
   updatedAt: number;
 }
 
+export interface Snippet {
+  id: string;
+  title: string;
+  body: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
 interface AppState {
   providers: ProviderConfig[];
   conversations: Conversation[];
@@ -25,6 +33,7 @@ interface AppState {
   /** Cached model lists per provider id. Not persisted long-term but kept in memory. */
   modelCache: Record<string, ModelInfo[]>;
   presets: SavedPreset[];
+  snippets: Snippet[];
   hydrated: boolean;
 
   // provider actions
@@ -52,6 +61,11 @@ interface AppState {
   // preset actions
   savePreset: (draft: PresetDraft, id?: string) => string;
   removePreset: (id: string) => void;
+
+  // snippet actions
+  saveSnippet: (draft: { title: string; body: string }, id?: string) => string;
+  removeSnippet: (id: string) => void;
+  addSnippets: (items: Array<{ title: string; body: string }>) => void;
 }
 
 function makeConversation(): Conversation {
@@ -76,6 +90,7 @@ export const useStore = create<AppState>()(
       activeId: null,
       modelCache: {},
       presets: [],
+      snippets: [],
       hydrated: false,
 
       addProvider: (p) => {
@@ -209,6 +224,43 @@ export const useStore = create<AppState>()(
       },
       removePreset: (id) =>
         set((s) => ({ presets: s.presets.filter((p) => p.id !== id) })),
+
+      saveSnippet: (draft, id) => {
+        const now = Date.now();
+        if (id) {
+          set((s) => ({
+            snippets: s.snippets.map((sn) =>
+              sn.id === id ? { ...sn, ...draft, updatedAt: now } : sn
+            ),
+          }));
+          return id;
+        }
+        const newId = nanoid();
+        set((s) => ({
+          snippets: [
+            { id: newId, title: draft.title, body: draft.body, createdAt: now, updatedAt: now },
+            ...s.snippets,
+          ],
+        }));
+        return newId;
+      },
+      removeSnippet: (id) =>
+        set((s) => ({ snippets: s.snippets.filter((sn) => sn.id !== id) })),
+      addSnippets: (items) => {
+        const now = Date.now();
+        set((s) => ({
+          snippets: [
+            ...items.map((it) => ({
+              id: nanoid(),
+              title: it.title,
+              body: it.body,
+              createdAt: now,
+              updatedAt: now,
+            })),
+            ...s.snippets,
+          ],
+        }));
+      },
     }),
     {
       name: "newfrontend-store",
@@ -218,6 +270,7 @@ export const useStore = create<AppState>()(
         conversations: s.conversations,
         activeId: s.activeId,
         presets: s.presets,
+        snippets: s.snippets,
       }),
       onRehydrateStorage: () => (state) => {
         if (state) state.hydrated = true;

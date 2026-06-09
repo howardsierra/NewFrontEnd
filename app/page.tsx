@@ -6,6 +6,7 @@ import { Sidebar } from "@/components/Sidebar";
 import { ChatView } from "@/components/ChatView";
 import { SettingsModal } from "@/components/SettingsModal";
 import { PresetBuilder } from "@/components/PresetBuilder";
+import { SnippetLibrary } from "@/components/SnippetLibrary";
 import { Sparkles } from "lucide-react";
 import clsx from "clsx";
 
@@ -19,6 +20,7 @@ export default function Page() {
 
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [presetsOpen, setPresetsOpen] = useState(false);
+  const [snippetsOpen, setSnippetsOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Ensure there's always an active conversation once hydrated.
@@ -41,6 +43,13 @@ export default function Page() {
     return () => document.removeEventListener("toggle-sidebar", handler);
   }, []);
 
+  // Open the snippet library from the composer button.
+  useEffect(() => {
+    const handler = () => setSnippetsOpen(true);
+    document.addEventListener("open-snippets", handler);
+    return () => document.removeEventListener("open-snippets", handler);
+  }, []);
+
   const active = conversations.find((c) => c.id === activeId) ?? null;
 
   if (!hydrated) {
@@ -61,6 +70,7 @@ export default function Page() {
         <Sidebar
           onOpenSettings={() => setSettingsOpen(true)}
           onOpenPresets={() => setPresetsOpen(true)}
+          onOpenSnippets={() => setSnippetsOpen(true)}
         />
       </div>
 
@@ -90,6 +100,7 @@ export default function Page() {
               setSidebarOpen(false);
             }}
             onOpenPresets={() => setPresetsOpen(true)}
+            onOpenSnippets={() => setSnippetsOpen(true)}
             onClose={() => setSidebarOpen(false)}
           />
         </div>
@@ -108,6 +119,7 @@ export default function Page() {
 
       {settingsOpen && <SettingsModal onClose={() => setSettingsOpen(false)} />}
       {presetsOpen && <PresetBuilder onClose={() => setPresetsOpen(false)} />}
+      {snippetsOpen && <SnippetLibrary onClose={() => setSnippetsOpen(false)} />}
     </div>
   );
 }

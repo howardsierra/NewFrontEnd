@@ -30,6 +30,9 @@ your keys directly when you'd rather skip the web platforms.
   estimate. Per-message cost in USD using **live OpenRouter pricing** and a
   curated OpenAI/Anthropic price table; per-model prices shown in the picker.
 - **Per-conversation controls** — system prompt, temperature, top-p, max tokens.
+- **Prompt & snippet library** — save reusable prompts and insert them with a
+  `/` slash-command menu in the composer (↑↓/Enter), or set one as the chat's
+  system prompt. Includes a starter pack, search, and JSON import/export.
 - **Conversation management** — multiple chats, rename, regenerate, delete, all
   persisted locally.
 - **Keys never leave your browser** — stored in `localStorage` and passed
@@ -99,7 +102,7 @@ lib/
 ## Roadmap
 
 - Custom provider presets/import-export.
-- Prompt/snippet library.
+- Snippet placeholder prompts (fill in `{{variables}}` on insert).
 - Editable/override pricing for custom and local models.
 
 ## Security notes

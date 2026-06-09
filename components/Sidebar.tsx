@@ -12,16 +12,19 @@ import {
   Check,
   X,
   Wand2,
+  BookText,
 } from "lucide-react";
 import clsx from "clsx";
 
 export function Sidebar({
   onOpenSettings,
   onOpenPresets,
+  onOpenSnippets,
   onClose,
 }: {
   onOpenSettings: () => void;
   onOpenPresets: () => void;
+  onOpenSnippets: () => void;
   onClose?: () => void;
 }) {
   const conversations = useStore((s) => s.conversations);
@@ -145,6 +148,16 @@ export function Sidebar({
       </div>
 
       <div className="space-y-0.5 border-t border-line p-3">
+        <button
+          className="btn-ghost w-full justify-start"
+          onClick={() => {
+            onOpenSnippets();
+            onClose?.();
+          }}
+        >
+          <BookText size={16} />
+          Prompt library
+        </button>
         <button
           className="btn-ghost w-full justify-start"
           onClick={() => {
