@@ -42,13 +42,15 @@ export function Sidebar({
   const [draft, setDraft] = useState("");
 
   return (
-    <div className="flex h-full w-72 flex-col border-r border-line bg-bg-subtle/80 backdrop-blur">
-      <div className="flex items-center gap-2 px-4 py-4">
-        <div className="grid h-8 w-8 place-items-center rounded-lg bg-accent shadow-glow">
+    <div className="flex h-full w-72 flex-col border-r border-line/70 bg-bg-subtle/60 backdrop-blur-xl">
+      <div className="flex items-center gap-2.5 px-4 py-4">
+        <div className="grid h-9 w-9 place-items-center rounded-xl bg-accent-grad shadow-glow ring-1 ring-white/10">
           <Sparkles size={18} className="text-white" />
         </div>
         <div className="leading-tight">
-          <div className="text-sm font-semibold">NewFrontEnd</div>
+          <div className="text-sm font-semibold tracking-tight text-gradient">
+            NewFrontEnd
+          </div>
           <div className="text-[11px] text-ink-faint">AI Studio</div>
         </div>
       </div>
@@ -77,12 +79,15 @@ export function Sidebar({
             <div
               key={c.id}
               className={clsx(
-                "group flex items-center gap-2 rounded-lg px-2.5 py-2 text-sm transition-colors",
+                "group relative flex items-center gap-2 rounded-lg px-2.5 py-2 text-sm transition-colors",
                 isActive
-                  ? "bg-bg-elevated text-ink"
-                  : "text-ink-muted hover:bg-bg-elevated/60 hover:text-ink"
+                  ? "bg-gradient-to-r from-accent/15 via-accent/[0.06] to-transparent text-ink"
+                  : "text-ink-muted hover:bg-white/[0.04] hover:text-ink"
               )}
             >
+              {isActive && (
+                <span className="absolute inset-y-1.5 left-0 w-0.5 rounded-full bg-accent-grad" />
+              )}
               {editing === c.id ? (
                 <>
                   <input

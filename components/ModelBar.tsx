@@ -34,7 +34,7 @@ export function ModelBar({
   );
 
   return (
-    <div className="flex items-center gap-2 border-b border-line bg-bg-subtle/70 px-3 py-2.5 backdrop-blur">
+    <div className="flex items-center gap-2 border-b border-line/70 bg-bg-subtle/50 px-3 py-2.5 backdrop-blur-xl">
       <button
         className="btn-ghost px-2 lg:hidden"
         onClick={onToggleSidebar}

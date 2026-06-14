@@ -97,27 +97,32 @@ function Welcome({
 }) {
   return (
     <div className="mx-auto flex max-w-2xl flex-col items-center px-4 py-16 text-center">
-      <div className="mb-4 grid h-14 w-14 place-items-center rounded-2xl bg-accent shadow-glow">
-        <Sparkles size={28} className="text-white" />
+      <div className="relative mb-5">
+        <div className="absolute inset-0 -z-10 animate-glow-pulse rounded-[28px] bg-accent/40 blur-2xl" />
+        <div className="grid h-16 w-16 place-items-center rounded-[20px] bg-accent-grad shadow-glow ring-1 ring-white/15">
+          <Sparkles size={30} className="text-white" />
+        </div>
       </div>
-      <h1 className="text-2xl font-semibold">
+      <h1 className="text-3xl font-semibold tracking-tight text-gradient">
         What can I help you build?
       </h1>
-      <p className="mt-2 text-sm text-ink-muted">
+      <p className="mt-2.5 text-sm text-ink-muted">
         {ready
           ? "Pick a starting point or just start typing."
           : "Add a provider key and select a model in the top bar to begin."}
       </p>
 
-      <div className="mt-8 grid w-full gap-3 sm:grid-cols-3">
+      <div className="mt-9 grid w-full gap-3 sm:grid-cols-3">
         {SUGGESTIONS.map((s) => (
           <button
             key={s.title}
             disabled={!ready}
             onClick={() => onPick(s.prompt)}
-            className="card group flex flex-col items-start gap-2 p-4 text-left transition hover:border-accent/50 disabled:cursor-not-allowed disabled:opacity-50"
+            className="group relative flex flex-col items-start gap-2.5 overflow-hidden rounded-2xl border border-line/80 bg-white/[0.02] p-4 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/40 hover:bg-white/[0.04] hover:shadow-glow disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0"
           >
-            <s.icon size={18} className="text-accent-soft" />
+            <span className="grid h-9 w-9 place-items-center rounded-xl bg-accent-grad-soft text-accent-soft ring-1 ring-white/5 transition-transform group-hover:scale-105">
+              <s.icon size={18} />
+            </span>
             <span className="text-sm font-medium text-ink">{s.title}</span>
           </button>
         ))}

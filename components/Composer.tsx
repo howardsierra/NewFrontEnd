@@ -138,8 +138,8 @@ export function Composer({
     <div className="px-3 pb-4 pt-1 sm:px-6">
       <div
         className={clsx(
-          "relative mx-auto max-w-3xl rounded-2xl border bg-bg-panel/90 p-2 shadow-2xl backdrop-blur transition",
-          dragOver ? "border-accent shadow-glow" : "border-line"
+          "glass relative mx-auto max-w-3xl rounded-[20px] p-2 shadow-panel transition-all duration-200 focus-within:border-accent/40 focus-within:shadow-glow",
+          dragOver && "border-accent shadow-glow"
         )}
         onDragOver={(e) => {
           e.preventDefault();

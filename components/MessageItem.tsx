@@ -40,12 +40,14 @@ export function MessageItem({
   };
 
   return (
-    <div className="group animate-fade-in">
+    <div className="group -mx-3 rounded-2xl px-3 py-1.5 transition-colors hover:bg-white/[0.018] animate-fade-in">
       <div className="flex gap-3">
         <div
           className={clsx(
-            "grid h-8 w-8 shrink-0 place-items-center rounded-lg",
-            isUser ? "bg-bg-elevated text-ink-muted" : "bg-accent text-white shadow-glow"
+            "grid h-8 w-8 shrink-0 place-items-center rounded-xl ring-1",
+            isUser
+              ? "bg-bg-elevated text-ink-muted ring-white/5"
+              : "bg-accent-grad text-white shadow-glow ring-white/10"
           )}
         >
           {isUser ? <User size={16} /> : <Sparkles size={16} />}
