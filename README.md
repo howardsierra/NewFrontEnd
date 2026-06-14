@@ -36,7 +36,9 @@ your keys directly when you'd rather skip the web platforms.
 - **Per-conversation controls** — system prompt, temperature, top-p, max tokens.
 - **Prompt & snippet library** — save reusable prompts and insert them with a
   `/` slash-command menu in the composer (↑↓/Enter), or set one as the chat's
-  system prompt. Includes a starter pack, search, and JSON import/export.
+  system prompt. Snippets with `{{placeholders}}` open a fill-in panel (Tab
+  between fields, live preview) so reusable prompts become quick templates.
+  Includes a starter pack, search, and JSON import/export.
 - **Conversation management** — multiple chats, rename, regenerate, delete, all
   persisted locally.
 - **Backup & restore** — export your whole setup (providers, presets, snippets,
@@ -109,7 +111,6 @@ lib/
 
 ## Roadmap
 
-- Snippet placeholder prompts (fill in `{{variables}}` on insert).
 - Editable/override pricing for custom and local models.
 
 ## Security notes

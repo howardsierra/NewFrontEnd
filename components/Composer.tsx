@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { parseFile } from "@/lib/files";
 import type { Attachment } from "@/lib/types";
 import { useStore } from "@/lib/store";
+import { hasPlaceholders, parsePlaceholders } from "@/lib/placeholders";
+import { PlaceholderFill } from "./PlaceholderFill";
 import {
   Paperclip,
   ArrowUp,
@@ -23,6 +25,13 @@ interface SlashState {
   query: string;
 }
 
+type InsertTarget = { kind: "append" } | { kind: "at"; pos: number };
+
+interface PendingFill {
+  body: string;
+  target: InsertTarget;
+}
+
 export function Composer({
   busy,
   disabled,
@@ -40,6 +49,7 @@ export function Composer({
   const [dragOver, setDragOver] = useState(false);
   const [slash, setSlash] = useState<SlashState | null>(null);
   const [slashIndex, setSlashIndex] = useState(0);
+  const [pendingFill, setPendingFill] = useState<PendingFill | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const textarea = useRef<HTMLTextAreaElement>(null);
 
@@ -56,13 +66,35 @@ export function Composer({
         .slice(0, 6)
     : [];
 
-  const focusEnd = () => {
-    const el = textarea.current;
-    if (!el) return;
-    el.focus();
-    const end = el.value.length;
-    el.setSelectionRange(end, end);
-    autoGrow();
+  /** Insert text either appended to the end or at a specific index. */
+  const doInsert = (str: string, target: InsertTarget) => {
+    setText((prev) => {
+      let next: string;
+      let caret: number;
+      if (target.kind === "append") {
+        const insert = (prev.trim() ? "\n\n" : "") + str;
+        next = prev + insert;
+        caret = next.length;
+      } else {
+        const pos = Math.min(target.pos, prev.length);
+        next = prev.slice(0, pos) + str + prev.slice(pos);
+        caret = pos + str.length;
+      }
+      requestAnimationFrame(() => {
+        const el = textarea.current;
+        if (!el) return;
+        el.focus();
+        el.setSelectionRange(caret, caret);
+        autoGrow();
+      });
+      return next;
+    });
+  };
+
+  /** Route a snippet through the placeholder fill panel if it has {{vars}}. */
+  const chooseSnippet = (body: string, target: InsertTarget) => {
+    if (hasPlaceholders(body)) setPendingFill({ body, target });
+    else doInsert(body, target);
   };
 
   // Library "Insert" appends a snippet to the composer.
@@ -70,11 +102,11 @@ export function Composer({
     const handler = (e: Event) => {
       const body = (e as CustomEvent<string>).detail;
       if (typeof body !== "string") return;
-      setText((prev) => (prev.trim() ? prev + "\n\n" + body : body));
-      setTimeout(focusEnd, 0);
+      chooseSnippet(body, { kind: "append" });
     };
     document.addEventListener("insert-snippet", handler);
     return () => document.removeEventListener("insert-snippet", handler);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   /** Detect an in-progress "/command" immediately before the caret. */
@@ -91,17 +123,11 @@ export function Composer({
 
   const applySnippet = (body: string) => {
     if (!slash) return;
-    const next = text.slice(0, slash.start) + body + text.slice(slash.end);
-    setText(next);
+    const pos = slash.start;
+    // Drop the "/query" the user typed, then insert (or open the fill panel).
+    setText((prev) => prev.slice(0, slash.start) + prev.slice(slash.end));
     setSlash(null);
-    setTimeout(() => {
-      const el = textarea.current;
-      if (!el) return;
-      const pos = slash.start + body.length;
-      el.focus();
-      el.setSelectionRange(pos, pos);
-      autoGrow();
-    }, 0);
+    chooseSnippet(body, { kind: "at", pos });
   };
 
   const handleFiles = async (files: FileList | File[]) => {
@@ -152,8 +178,21 @@ export function Composer({
           if (e.dataTransfer.files.length) handleFiles(e.dataTransfer.files);
         }}
       >
+        {/* Placeholder fill-in panel (takes priority over the slash menu) */}
+        {pendingFill && (
+          <PlaceholderFill
+            body={pendingFill.body}
+            variables={parsePlaceholders(pendingFill.body)}
+            onSubmit={(filled) => {
+              doInsert(filled, pendingFill.target);
+              setPendingFill(null);
+            }}
+            onCancel={() => setPendingFill(null)}
+          />
+        )}
+
         {/* Slash-command snippet menu */}
-        {slash && slashMatches.length > 0 && (
+        {!pendingFill && slash && slashMatches.length > 0 && (
           <div className="absolute bottom-full left-2 right-2 mb-2 overflow-hidden rounded-xl border border-line bg-bg-panel shadow-2xl animate-fade-in">
             <div className="flex items-center gap-1.5 border-b border-line px-3 py-1.5 text-[11px] text-ink-faint">
               <BookText size={12} /> Snippets · ↑↓ to navigate · ⏎ to insert
