@@ -3,7 +3,7 @@
 // browser's localStorage.
 
 import type { ProviderConfig, Conversation } from "./types";
-import type { SavedPreset, Snippet } from "./store";
+import type { SavedPreset, Snippet, SavedTheme, SavedRegex } from "./store";
 
 export const BACKUP_KIND = "newfrontend-backup";
 export const BACKUP_VERSION = 1;
@@ -17,6 +17,8 @@ export interface BackupFile {
   providers: ProviderConfig[];
   presets: SavedPreset[];
   snippets: Snippet[];
+  themes?: SavedTheme[];
+  regexScripts?: SavedRegex[];
   conversations?: Conversation[];
 }
 
@@ -24,6 +26,8 @@ interface BackupSource {
   providers: ProviderConfig[];
   presets: SavedPreset[];
   snippets: Snippet[];
+  themes: SavedTheme[];
+  regexScripts: SavedRegex[];
   conversations: Conversation[];
 }
 
@@ -44,6 +48,8 @@ export function buildBackup(src: BackupSource, opts: BackupOptions): BackupFile 
     providers,
     presets: src.presets,
     snippets: src.snippets,
+    themes: src.themes,
+    regexScripts: src.regexScripts,
     ...(opts.includeConversations ? { conversations: src.conversations } : {}),
   };
 }
@@ -78,6 +84,8 @@ export interface ImportSummary {
   providers: number;
   presets: number;
   snippets: number;
+  themes: number;
+  regexScripts: number;
   conversations: number;
   skipped: number;
 }

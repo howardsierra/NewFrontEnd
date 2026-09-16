@@ -31,7 +31,7 @@ const SUGGESTIONS = [
 ];
 
 export function ChatView({ conv }: { conv: Conversation }) {
-  const { send, stop, regenerate, busy } = useChat();
+  const { send, stop, regenerate, generateImage, busy } = useChat();
   const providers = useStore((s) => s.providers);
   const scrollRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -83,7 +83,7 @@ export function ChatView({ conv }: { conv: Conversation }) {
         )}
       </div>
 
-      <Composer busy={busy} disabled={!ready} onSend={send} onStop={stop} />
+      <Composer busy={busy} disabled={!ready} onSend={send} onStop={stop} onGenerateImage={generateImage} />
     </div>
   );
 }
@@ -118,7 +118,7 @@ function Welcome({
             key={s.title}
             disabled={!ready}
             onClick={() => onPick(s.prompt)}
-            className="group relative flex flex-col items-start gap-2.5 overflow-hidden rounded-2xl border border-line/80 bg-white/[0.02] p-4 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/40 hover:bg-white/[0.04] hover:shadow-glow disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0"
+            className="group relative flex flex-col items-start gap-2.5 overflow-hidden rounded-2xl border border-line/80 bg-overlay/[0.02] p-4 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/40 hover:bg-overlay/[0.05] hover:shadow-glow disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0"
           >
             <span className="grid h-9 w-9 place-items-center rounded-xl bg-accent-grad-soft text-accent-soft ring-1 ring-white/5 transition-transform group-hover:scale-105">
               <s.icon size={18} />

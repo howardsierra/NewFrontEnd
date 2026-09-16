@@ -7,8 +7,57 @@
 :root {
   --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-mono: ui-monospace, "JetBrains Mono", "SF Mono", Menlo, monospace;
+
+  /* Dark (default) — RGB triplets consumed as rgb(var(--x) / <alpha>) */
+  --c-bg: 10 11 16;
+  --c-bg-subtle: 13 15 23;
+  --c-bg-panel: 18 20 31;
+  --c-bg-elevated: 25 28 42;
+  --c-line: 34 38 58;
+  --c-line-soft: 25 28 43;
+  --c-accent: 124 108 255;
+  --c-accent-soft: 169 155 255;
+  --c-accent-glow: 91 140 255;
+  --c-accent-deep: 91 61 240;
+  --c-ink: 234 235 244;
+  --c-ink-muted: 150 157 180;
+  --c-ink-faint: 92 99 130;
+  --c-overlay: 255 255 255;
+
   --hairline: rgba(255, 255, 255, 0.07);
   --hairline-strong: rgba(255, 255, 255, 0.1);
+  --scrollbar: #2a2f45;
+  --scrollbar-hover: #3a4060;
+  --body-grad: radial-gradient(900px 520px at 82% -8%, rgba(124, 108, 255, 0.16), transparent 60%),
+    radial-gradient(820px 480px at 12% 4%, rgba(91, 140, 255, 0.1), transparent 58%),
+    radial-gradient(700px 700px at 50% 120%, rgba(124, 108, 255, 0.06), transparent 60%);
+  color-scheme: dark;
+}
+
+:root[data-theme="light"] {
+  /* Warm, premium light (Flux-inspired) */
+  --c-bg: 248 247 244;
+  --c-bg-subtle: 242 241 238;
+  --c-bg-panel: 255 255 255;
+  --c-bg-elevated: 237 235 231;
+  --c-line: 224 221 214;
+  --c-line-soft: 234 232 226;
+  --c-accent: 118 86 190;
+  --c-accent-soft: 128 97 186;
+  --c-accent-glow: 76 131 184;
+  --c-accent-deep: 103 80 160;
+  --c-ink: 37 35 31;
+  --c-ink-muted: 93 88 82;
+  --c-ink-faint: 150 145 138;
+  --c-overlay: 40 34 28;
+
+  --hairline: rgba(40, 34, 28, 0.1);
+  --hairline-strong: rgba(40, 34, 28, 0.16);
+  --scrollbar: #d3cec5;
+  --scrollbar-hover: #bdb7ac;
+  --body-grad: radial-gradient(900px 520px at 84% -10%, rgba(146, 110, 222, 0.14), transparent 60%),
+    radial-gradient(760px 460px at 10% 2%, rgba(215, 161, 118, 0.12), transparent 58%);
+  color-scheme: light;
 }
 
 html,
@@ -19,48 +68,38 @@ body {
 body {
   @apply bg-bg text-ink antialiased;
   font-feature-settings: "cv11", "ss01";
-  background-image:
-    radial-gradient(900px 520px at 82% -8%, rgba(124, 108, 255, 0.16), transparent 60%),
-    radial-gradient(820px 480px at 12% 4%, rgba(91, 140, 255, 0.1), transparent 58%),
-    radial-gradient(700px 700px at 50% 120%, rgba(124, 108, 255, 0.06), transparent 60%);
+  background-image: var(--body-grad);
   background-attachment: fixed;
 }
 
 ::selection {
-  background: rgba(124, 108, 255, 0.32);
+  background: rgb(var(--c-accent) / 0.32);
   color: #fff;
 }
 
 /* Scrollbars */
 * {
   scrollbar-width: thin;
-  scrollbar-color: #2a2f45 transparent;
+  scrollbar-color: var(--scrollbar) transparent;
 }
 *::-webkit-scrollbar {
   width: 10px;
   height: 10px;
 }
 *::-webkit-scrollbar-thumb {
-  background: #2a2f45;
+  background: var(--scrollbar);
   border-radius: 999px;
   border: 2px solid transparent;
   background-clip: content-box;
 }
 *::-webkit-scrollbar-thumb:hover {
-  background: #3a4060;
+  background: var(--scrollbar-hover);
   background-clip: content-box;
 }
 
 @layer components {
-  .hairline {
-    border-color: var(--hairline);
-  }
   .glass {
-    background: linear-gradient(
-      180deg,
-      rgba(24, 27, 41, 0.72),
-      rgba(16, 18, 28, 0.72)
-    );
+    background: linear-gradient(180deg, rgb(var(--c-bg-elevated) / 0.72), rgb(var(--c-bg-panel) / 0.72));
     backdrop-filter: blur(16px) saturate(140%);
     -webkit-backdrop-filter: blur(16px) saturate(140%);
     border: 1px solid var(--hairline);
@@ -74,63 +113,53 @@ body {
   }
   .btn-primary {
     @apply btn text-white;
-    background-image: linear-gradient(135deg, #7c6cff 0%, #5b8cff 100%);
-    box-shadow:
-      0 1px 0 0 rgba(255, 255, 255, 0.18) inset,
-      0 8px 24px -10px rgba(124, 108, 255, 0.7);
+    background-image: linear-gradient(135deg, rgb(var(--c-accent)) 0%, rgb(var(--c-accent-glow)) 100%);
+    box-shadow: 0 1px 0 0 rgba(255, 255, 255, 0.18) inset, 0 8px 24px -10px rgb(var(--c-accent) / 0.7);
   }
   .btn-primary:hover:not(:disabled) {
     filter: brightness(1.08);
-    box-shadow:
-      0 1px 0 0 rgba(255, 255, 255, 0.22) inset,
-      0 12px 30px -10px rgba(124, 108, 255, 0.85);
+    box-shadow: 0 1px 0 0 rgba(255, 255, 255, 0.22) inset, 0 12px 30px -10px rgb(var(--c-accent) / 0.85);
   }
   .btn-ghost {
     @apply btn text-ink-muted hover:text-ink;
   }
   .btn-ghost:hover:not(:disabled) {
-    background: rgba(255, 255, 255, 0.045);
+    background: rgb(var(--c-overlay) / 0.05);
   }
   .btn-soft {
     @apply btn text-ink;
-    background: rgba(255, 255, 255, 0.035);
+    background: rgb(var(--c-overlay) / 0.04);
     border: 1px solid var(--hairline);
   }
   .btn-soft:hover:not(:disabled) {
-    background: rgba(255, 255, 255, 0.07);
+    background: rgb(var(--c-overlay) / 0.08);
     border-color: var(--hairline-strong);
   }
   .input {
     @apply w-full rounded-lg px-3 py-2 text-sm text-ink placeholder:text-ink-faint outline-none transition-all duration-150;
-    background: rgba(255, 255, 255, 0.03);
+    background: rgb(var(--c-overlay) / 0.03);
     border: 1px solid var(--hairline);
   }
   .input:focus {
-    border-color: rgba(124, 108, 255, 0.6);
-    box-shadow: 0 0 0 3px rgba(124, 108, 255, 0.16);
-    background: rgba(255, 255, 255, 0.05);
+    border-color: rgb(var(--c-accent) / 0.6);
+    box-shadow: 0 0 0 3px rgb(var(--c-accent) / 0.16);
+    background: rgb(var(--c-overlay) / 0.05);
   }
   .card {
     @apply rounded-2xl;
-    background: linear-gradient(
-      180deg,
-      rgba(22, 25, 38, 0.82),
-      rgba(15, 17, 26, 0.82)
-    );
+    background: linear-gradient(180deg, rgb(var(--c-bg-panel) / 0.9), rgb(var(--c-bg-subtle) / 0.92));
     backdrop-filter: blur(18px) saturate(140%);
     -webkit-backdrop-filter: blur(18px) saturate(140%);
     border: 1px solid var(--hairline);
-    box-shadow:
-      0 1px 0 0 rgba(255, 255, 255, 0.04) inset,
-      0 24px 70px -28px rgba(0, 0, 0, 0.85);
+    box-shadow: 0 1px 0 0 rgb(var(--c-overlay) / 0.04) inset, 0 24px 70px -28px rgba(0, 0, 0, 0.55);
   }
   .chip {
     @apply inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs text-ink-muted;
-    background: rgba(255, 255, 255, 0.035);
+    background: rgb(var(--c-overlay) / 0.04);
     border: 1px solid var(--hairline);
   }
   .text-gradient {
-    background: linear-gradient(120deg, #eaebf4 0%, #a99bff 55%, #5b8cff 100%);
+    background: linear-gradient(120deg, rgb(var(--c-ink)) 0%, rgb(var(--c-accent-soft)) 55%, rgb(var(--c-accent-glow)) 100%);
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
@@ -178,13 +207,15 @@ body {
   @apply border border-line px-2.5 py-1.5 text-left;
 }
 .prose-chat th {
-  @apply bg-white/[0.03] font-medium;
+  background: rgb(var(--c-overlay) / 0.03);
+  @apply font-medium;
 }
 .prose-chat code:not(pre code) {
   @apply rounded-md px-1.5 py-0.5 text-[13px] font-mono text-accent-soft;
-  background: rgba(124, 108, 255, 0.12);
-  border: 1px solid rgba(124, 108, 255, 0.16);
+  background: rgb(var(--c-accent) / 0.12);
+  border: 1px solid rgb(var(--c-accent) / 0.16);
 }
+/* Code blocks stay dark in both themes (github-dark highlighting). */
 .prose-chat pre {
   @apply rounded-xl overflow-x-auto my-3 text-[13px] leading-relaxed;
   background: #0b0e16 !important;
@@ -198,7 +229,7 @@ body {
 
 .thinking-dots span {
   @apply inline-block h-1.5 w-1.5 rounded-full;
-  background: linear-gradient(135deg, #a99bff, #5b8cff);
+  background: linear-gradient(135deg, rgb(var(--c-accent-soft)), rgb(var(--c-accent-glow)));
   animation: pulse-dot 1.2s infinite ease-in-out both;
 }
 .thinking-dots span:nth-child(2) {

@@ -12,12 +12,17 @@ your keys directly when you'd rather skip the web platforms.
 ## Features
 
 - **Any OpenAI-compatible API key, in one UI** — OpenRouter, Anthropic (native
-  Messages API), OpenAI, plus unlimited custom OpenAI-compatible providers.
-  One-click presets for Groq, DeepSeek, Mistral, xAI (Grok), Together,
-  Fireworks, DeepInfra, Perplexity, and local servers (LM Studio / Ollama) —
-  the base URL is prefilled, so you just paste your key. Keyless local servers,
-  custom request headers (e.g. Azure’s `api-key`), and a **Test connection**
-  button are all supported.
+  Messages API), OpenAI, **Google Gemini** (native `generateContent`), plus
+  unlimited custom OpenAI-compatible providers. One-click presets for Groq,
+  NanoGPT, DeepSeek, Mistral, xAI (Grok), Together, Fireworks, DeepInfra,
+  Perplexity, and local servers (LM Studio / Ollama) — the base URL is
+  prefilled, so you just paste your key. Optional OpenAI **Responses API**
+  (`/responses`), keyless local servers, custom request headers (e.g. Azure’s
+  `api-key`), and a **Test connection** button are all supported.
+- **Light & dark themes** — a refined violet dark theme and a warm premium light
+  theme, toggleable from the top bar (your choice persists).
+- **Image generation** — an image mode in the composer that generates images via
+  OpenAI (`/images/generations`), Gemini, or OpenRouter, shown inline in chat.
 - **Streaming chat** with markdown rendering, syntax-highlighted code blocks,
   and one-click copy.
 - **File understanding** — attach and parse HTML, CSS, JavaScript/TypeScript,
@@ -34,6 +39,12 @@ your keys directly when you'd rather skip the web platforms.
   estimate. Per-message cost in USD using **live OpenRouter pricing** and a
   curated OpenAI/Anthropic price table; per-model prices shown in the picker.
 - **Per-conversation controls** — system prompt, temperature, top-p, max tokens.
+- **SillyTavern toolkit** — three builders that export JSON straight into
+  **SillyTavern 1.18.0**: a **Chat Completion preset** builder (prompt-manager
+  markers, dual `prompt_order`), a **UI theme** builder (rgba colors, blur,
+  fonts, custom CSS, with a live preview), and a **regex script** builder with a
+  live tester (paste sample text, see the find/replace result), placement
+  targeting, and a starter pack. All save to a local library and import/export.
 - **Prompt & snippet library** — save reusable prompts and insert them with a
   `/` slash-command menu in the composer (↑↓/Enter), or set one as the chat's
   system prompt. Snippets with `{{placeholders}}` open a fill-in panel (Tab

@@ -16,6 +16,7 @@ import {
   Loader2,
   BookText,
   CornerDownLeft,
+  ImagePlus,
 } from "lucide-react";
 import clsx from "clsx";
 
@@ -37,11 +38,13 @@ export function Composer({
   disabled,
   onSend,
   onStop,
+  onGenerateImage,
 }: {
   busy: boolean;
   disabled: boolean;
   onSend: (text: string, attachments: Attachment[]) => void;
   onStop: () => void;
+  onGenerateImage: (prompt: string, size: string) => void;
 }) {
   const [text, setText] = useState("");
   const [attachments, setAttachments] = useState<Attachment[]>([]);
@@ -50,6 +53,8 @@ export function Composer({
   const [slash, setSlash] = useState<SlashState | null>(null);
   const [slashIndex, setSlashIndex] = useState(0);
   const [pendingFill, setPendingFill] = useState<PendingFill | null>(null);
+  const [imageMode, setImageMode] = useState(false);
+  const [imageSize, setImageSize] = useState("1024x1024");
   const fileInput = useRef<HTMLInputElement>(null);
   const textarea = useRef<HTMLTextAreaElement>(null);
 
@@ -146,6 +151,13 @@ export function Composer({
 
   const submit = () => {
     if (busy || parsing) return;
+    if (imageMode) {
+      if (!text.trim()) return;
+      onGenerateImage(text.trim(), imageSize);
+      setText("");
+      if (textarea.current) textarea.current.style.height = "auto";
+      return;
+    }
     if (!text.trim() && attachments.length === 0) return;
     onSend(text.trim(), attachments);
     setText("");
@@ -252,6 +264,25 @@ export function Composer({
           </div>
         )}
 
+        {imageMode && (
+          <div className="mx-1 mb-1 flex items-center gap-2 rounded-lg border border-accent/30 bg-accent/10 px-3 py-1.5 text-xs text-accent-soft">
+            <ImagePlus size={14} />
+            <span className="font-medium">Image generation</span>
+            <select
+              value={imageSize}
+              onChange={(e) => setImageSize(e.target.value)}
+              className="ml-auto rounded-md border border-line bg-bg-panel px-1.5 py-0.5 text-[11px] text-ink outline-none"
+            >
+              <option>1024x1024</option>
+              <option>1536x1024</option>
+              <option>1024x1536</option>
+            </select>
+            <button className="text-ink-faint hover:text-ink" onClick={() => setImageMode(false)} aria-label="Exit image mode">
+              <X size={13} />
+            </button>
+          </div>
+        )}
+
         <div className="flex items-end gap-2">
           <button
             className="btn-ghost shrink-0 px-2"
@@ -282,6 +313,14 @@ export function Composer({
             aria-label="Open snippet library"
           >
             <BookText size={18} />
+          </button>
+          <button
+            className={clsx("btn-ghost shrink-0 px-2", imageMode && "text-accent-soft")}
+            onClick={() => setImageMode((v) => !v)}
+            title="Image generation mode"
+            aria-label="Toggle image generation"
+          >
+            <ImagePlus size={18} />
           </button>
 
           <textarea
@@ -328,7 +367,9 @@ export function Composer({
             placeholder={
               disabled
                 ? "Add a provider and model to start chatting…"
-                : "Send a message…  (Enter to send · Shift+Enter newline · / for snippets)"
+                : imageMode
+                  ? "Describe an image to generate…"
+                  : "Send a message…  (Enter to send · Shift+Enter newline · / for snippets)"
             }
             rows={1}
             className="max-h-[260px] flex-1 resize-none bg-transparent py-2 text-[15px] text-ink outline-none placeholder:text-ink-faint"

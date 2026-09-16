@@ -40,7 +40,7 @@ export function MessageItem({
   };
 
   return (
-    <div className="group -mx-3 rounded-2xl px-3 py-1.5 transition-colors hover:bg-white/[0.018] animate-fade-in">
+    <div className="group -mx-3 rounded-2xl px-3 py-1.5 transition-colors hover:bg-overlay/[0.03] animate-fade-in">
       <div className="flex gap-3">
         <div
           className={clsx(

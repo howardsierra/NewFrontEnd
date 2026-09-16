@@ -6,6 +6,7 @@ import { attachmentToPrompt } from "./files";
 import type { Attachment, ChatRequest, Conversation } from "./types";
 import { PROVIDER_META } from "./providers";
 import { resolvePrice, costFor } from "./pricing";
+import { nanoid } from "nanoid";
 
 /** Build the provider-agnostic message array from a conversation's history. */
 function buildMessages(conv: Conversation): ChatRequest["messages"] {
@@ -58,6 +59,7 @@ export function useChat() {
           ? provider.baseUrl
           : PROVIDER_META[provider.kind].baseUrl,
       headers: provider.headers,
+      useResponsesApi: provider.useResponsesApi,
       model: conv.model,
       params: conv.params,
       messages: buildMessages(conv),
@@ -195,5 +197,77 @@ export function useChat() {
     await runCompletion(conv.id);
   }, [runCompletion]);
 
-  return { send, stop, regenerate, busy };
+  /** Generate an image from a prompt using the active provider. */
+  const generateImage = useCallback(async (prompt: string, size: string) => {
+    const state = useStore.getState();
+    const conv = state.conversations.find((c) => c.id === state.activeId);
+    if (!conv) return;
+    const provider = state.providers.find((p) => p.id === conv.providerId);
+    if (!provider) {
+      alert("Pick a provider and model first (top bar).");
+      return;
+    }
+    if (!conv.model) {
+      alert("Select a model first.");
+      return;
+    }
+
+    state.addMessage(conv.id, newMessage("user", prompt));
+    if (conv.messages.length === 0 && conv.title === "New chat") {
+      state.renameConversation(conv.id, prompt.slice(0, 48).trim() || "Image");
+    }
+    const assistant = newMessage("assistant", "", {
+      streaming: true,
+      model: conv.model,
+      providerLabel: provider.label,
+    });
+    state.addMessage(conv.id, assistant);
+
+    setBusy(true);
+    try {
+      const res = await fetch("/api/image", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          kind: provider.kind,
+          apiKey: provider.apiKey,
+          baseUrl: provider.kind === "custom" ? provider.baseUrl : undefined,
+          headers: provider.headers,
+          model: conv.model,
+          prompt,
+          size,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.image) {
+        useStore.getState().patchMessage(conv.id, assistant.id, {
+          streaming: false,
+          error: data.error || `Image request failed (${res.status}).`,
+        });
+        return;
+      }
+      const attachment: Attachment = {
+        id: nanoid(),
+        name: `${prompt.slice(0, 24).trim() || "image"}.png`,
+        mime: "image/png",
+        size: 0,
+        kind: "image",
+        dataUrl: data.image,
+      };
+      useStore.getState().patchMessage(conv.id, assistant.id, {
+        streaming: false,
+        content: "",
+        attachments: [attachment],
+      });
+    } catch (e: any) {
+      useStore.getState().patchMessage(conv.id, assistant.id, {
+        streaming: false,
+        error: e?.message || "Network error.",
+      });
+    } finally {
+      setBusy(false);
+    }
+  }, []);
+
+  return { send, stop, regenerate, generateImage, busy };
 }

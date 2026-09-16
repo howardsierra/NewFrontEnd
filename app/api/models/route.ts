@@ -27,6 +27,21 @@ export async function POST(request: NextRequest) {
 
   if (!base) return json({ error: "Missing base URL." }, 400);
 
+  // Gemini lists models at GET /models?key=... and authenticates via query param.
+  if (body.kind === "gemini") {
+    try {
+      const res = await fetch(`${base}/models?key=${encodeURIComponent(body.apiKey)}&pageSize=1000`);
+      if (!res.ok) {
+        const text = await res.text();
+        return json({ error: `Provider returned ${res.status}: ${text.slice(0, 200)}` }, 502);
+      }
+      const data = await res.json();
+      return json({ models: normalizeGemini(data) });
+    } catch (e: any) {
+      return json({ error: `Could not list models: ${e.message || "network error"}` }, 502);
+    }
+  }
+
   const headers: Record<string, string> =
     body.kind === "anthropic"
       ? { "x-api-key": body.apiKey, "anthropic-version": "2023-06-01" }
@@ -79,6 +94,24 @@ function normalizeModels(data: any): ModelInfo[] {
 
   models.sort((a, b) => a.id.localeCompare(b.id));
   return models;
+}
+
+/** Gemini: { models: [{ name: "models/gemini-2.5-pro", supportedGenerationMethods, inputTokenLimit }] } */
+function normalizeGemini(data: any): ModelInfo[] {
+  const list: any[] = data?.models ?? [];
+  return list
+    .filter((m) =>
+      Array.isArray(m.supportedGenerationMethods)
+        ? m.supportedGenerationMethods.some((x: string) => x.includes("generateContent"))
+        : true
+    )
+    .map((m): ModelInfo => ({
+      id: String(m.name || "").replace(/^models\//, ""),
+      label: m.displayName || undefined,
+      contextLength: m.inputTokenLimit,
+    }))
+    .filter((m) => m.id)
+    .sort((a, b) => a.id.localeCompare(b.id));
 }
 
 function json(data: unknown, status = 200) {

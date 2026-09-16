@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 import clsx from "clsx";
 
-const NATIVE: ProviderKind[] = ["openrouter", "anthropic", "openai"];
+const NATIVE: ProviderKind[] = ["openrouter", "anthropic", "openai", "gemini"];
 
 export function SettingsModal({ onClose }: { onClose: () => void }) {
   const providers = useStore((s) => s.providers);
@@ -317,6 +317,20 @@ function ProviderRow({ provider }: { provider: ProviderConfig }) {
           className="input font-mono"
           spellCheck={false}
         />
+
+        {(provider.kind === "openai" ||
+          provider.kind === "openrouter" ||
+          provider.kind === "custom") && (
+          <label className="flex cursor-pointer items-center gap-2 text-xs text-ink-muted">
+            <input
+              type="checkbox"
+              checked={!!provider.useResponsesApi}
+              onChange={(e) => updateProvider(provider.id, { useResponsesApi: e.target.checked })}
+              className="accent-accent"
+            />
+            Use the Responses API (<code>/responses</code>) instead of chat completions
+          </label>
+        )}
 
         <div className="flex items-center gap-2 pt-0.5">
           <button

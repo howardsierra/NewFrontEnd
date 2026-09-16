@@ -9,27 +9,28 @@ const config: Config = {
     extend: {
       colors: {
         bg: {
-          DEFAULT: "#0a0b10",
-          subtle: "#0d0f17",
-          panel: "#12141f",
-          elevated: "#191c2a",
-          hover: "#20243440",
+          DEFAULT: "rgb(var(--c-bg) / <alpha-value>)",
+          subtle: "rgb(var(--c-bg-subtle) / <alpha-value>)",
+          panel: "rgb(var(--c-bg-panel) / <alpha-value>)",
+          elevated: "rgb(var(--c-bg-elevated) / <alpha-value>)",
         },
         line: {
-          DEFAULT: "#22263a",
-          soft: "#191c2b",
+          DEFAULT: "rgb(var(--c-line) / <alpha-value>)",
+          soft: "rgb(var(--c-line-soft) / <alpha-value>)",
         },
         accent: {
-          DEFAULT: "#7c6cff",
-          soft: "#a99bff",
-          glow: "#5b8cff",
-          deep: "#5b3df0",
+          DEFAULT: "rgb(var(--c-accent) / <alpha-value>)",
+          soft: "rgb(var(--c-accent-soft) / <alpha-value>)",
+          glow: "rgb(var(--c-accent-glow) / <alpha-value>)",
+          deep: "rgb(var(--c-accent-deep) / <alpha-value>)",
         },
         ink: {
-          DEFAULT: "#eaebf4",
-          muted: "#969db4",
-          faint: "#5c6382",
+          DEFAULT: "rgb(var(--c-ink) / <alpha-value>)",
+          muted: "rgb(var(--c-ink-muted) / <alpha-value>)",
+          faint: "rgb(var(--c-ink-faint) / <alpha-value>)",
         },
+        // Theme-aware surface overlay (white in dark, near-black in light).
+        overlay: "rgb(var(--c-overlay) / <alpha-value>)",
       },
       fontFamily: {
         sans: ["var(--font-sans)", "ui-sans-serif", "system-ui", "sans-serif"],

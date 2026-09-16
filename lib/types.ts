@@ -1,6 +1,6 @@
 // Shared types used across the app.
 
-export type ProviderKind = "openrouter" | "anthropic" | "openai" | "custom";
+export type ProviderKind = "openrouter" | "anthropic" | "openai" | "gemini" | "custom";
 
 /** A configured provider connection (stored in the browser). */
 export interface ProviderConfig {
@@ -16,6 +16,8 @@ export interface ProviderConfig {
   headers?: Record<string, string>;
   /** Optional default model id for this provider. */
   defaultModel?: string;
+  /** Use the OpenAI Responses API (/responses) instead of chat completions. */
+  useResponsesApi?: boolean;
   /** Optional UI hint and "get key" link (carried from a custom preset). */
   hint?: string;
   keysUrl?: string;
@@ -100,6 +102,7 @@ export interface ChatRequest {
   apiKey: string;
   baseUrl?: string;
   headers?: Record<string, string>;
+  useResponsesApi?: boolean;
   model: string;
   params: GenerationParams;
   messages: Array<{

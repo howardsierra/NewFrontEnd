@@ -8,7 +8,7 @@ interface UpstreamCall {
   headers: Record<string, string>;
   body: string;
   /** How to decode the upstream SSE stream into plain text deltas. */
-  flavor: "openai" | "anthropic";
+  flavor: "openai" | "anthropic" | "gemini";
 }
 
 function resolveBaseUrl(req: ChatRequest): string {
@@ -48,6 +48,35 @@ function buildOpenAiCall(req: ChatRequest): UpstreamCall {
   // User-supplied headers win (e.g. Azure's `api-key`).
   if (req.headers) Object.assign(headers, req.headers);
 
+  // OpenAI Responses API (/responses) — different payload + endpoint.
+  if (req.useResponsesApi) {
+    const input = req.messages.map((m) => {
+      if (m.images && m.images.length > 0 && m.role === "user") {
+        return {
+          role: m.role,
+          content: [
+            ...(m.content ? [{ type: "input_text", text: m.content }] : []),
+            ...m.images.map((url) => ({ type: "input_image", image_url: url })),
+          ],
+        };
+      }
+      return { role: m.role, content: m.content };
+    });
+    return {
+      url: `${base}/responses`,
+      headers,
+      flavor: "openai",
+      body: JSON.stringify({
+        model: req.model,
+        input,
+        stream: true,
+        temperature: req.params.temperature,
+        max_output_tokens: req.params.maxTokens,
+        top_p: req.params.topP,
+      }),
+    };
+  }
+
   const body: Record<string, unknown> = {
     model: req.model,
     messages,
@@ -68,6 +97,54 @@ function buildOpenAiCall(req: ChatRequest): UpstreamCall {
     flavor: "openai",
     body: JSON.stringify(body),
   };
+}
+
+/** Build a Google Gemini streamGenerateContent request. */
+function buildGeminiCall(req: ChatRequest): UpstreamCall {
+  const base = PROVIDER_META.gemini.baseUrl;
+  const system = req.messages
+    .filter((m) => m.role === "system")
+    .map((m) => m.content)
+    .join("\n\n");
+
+  const contents = req.messages
+    .filter((m) => m.role !== "system")
+    .map((m) => {
+      const parts: unknown[] = [];
+      if (m.images && m.images.length > 0 && m.role === "user") {
+        for (const url of m.images) {
+          const match = /^data:(.+?);base64,(.*)$/.exec(url);
+          if (match) parts.push({ inlineData: { mimeType: match[1], data: match[2] } });
+        }
+      }
+      if (m.content) parts.push({ text: m.content });
+      return { role: m.role === "assistant" ? "model" : "user", parts };
+    });
+
+  const body: Record<string, unknown> = {
+    contents,
+    generationConfig: {
+      temperature: req.params.temperature,
+      topP: req.params.topP,
+      maxOutputTokens: req.params.maxTokens,
+    },
+  };
+  if (system) body.systemInstruction = { parts: [{ text: system }] };
+
+  const model = encodeURIComponent(req.model);
+  const key = encodeURIComponent(req.apiKey);
+  return {
+    url: `${base}/models/${model}:streamGenerateContent?alt=sse&key=${key}`,
+    headers: { "Content-Type": "application/json" },
+    flavor: "gemini",
+    body: JSON.stringify(body),
+  };
+}
+
+export function buildUpstreamCall(req: ChatRequest): UpstreamCall {
+  if (req.kind === "anthropic") return buildAnthropicCall(req);
+  if (req.kind === "gemini") return buildGeminiCall(req);
+  return buildOpenAiCall(req);
 }
 
 /** Build an Anthropic Messages request. */
@@ -117,12 +194,6 @@ function buildAnthropicCall(req: ChatRequest): UpstreamCall {
   };
 }
 
-export function buildUpstreamCall(req: ChatRequest): UpstreamCall {
-  return req.kind === "anthropic"
-    ? buildAnthropicCall(req)
-    : buildOpenAiCall(req);
-}
-
 export type ParsedEvent =
   | { type: "text"; text: string }
   | { type: "usage"; input: number; output: number };
@@ -133,7 +204,7 @@ export type ParsedEvent =
  */
 export async function* parseSse(
   stream: ReadableStream<Uint8Array>,
-  flavor: "openai" | "anthropic"
+  flavor: "openai" | "anthropic" | "gemini"
 ): AsyncGenerator<ParsedEvent> {
   const reader = stream.getReader();
   const decoder = new TextDecoder();
@@ -167,17 +238,48 @@ export async function* parseSse(
         }
 
         if (flavor === "openai") {
+          // Chat Completions delta
           const delta = json.choices?.[0]?.delta?.content;
           if (typeof delta === "string" && delta) {
             yield { type: "text", text: delta };
           }
-          // Final usage chunk (requires stream_options.include_usage).
-          if (json.usage) {
+          // Responses API events
+          if (json.type === "response.output_text.delta" && typeof json.delta === "string") {
+            yield { type: "text", text: json.delta };
+          }
+          if (json.type === "response.completed" && json.response?.usage) {
+            yield {
+              type: "usage",
+              input: json.response.usage.input_tokens ?? 0,
+              output: json.response.usage.output_tokens ?? 0,
+            };
+          }
+          // Chat Completions final usage chunk (stream_options.include_usage)
+          if (json.usage && json.object !== "response") {
             yield {
               type: "usage",
               input: json.usage.prompt_tokens ?? 0,
               output: json.usage.completion_tokens ?? 0,
             };
+          }
+        } else if (flavor === "gemini") {
+          const parts = json.candidates?.[0]?.content?.parts;
+          if (Array.isArray(parts)) {
+            for (const p of parts) {
+              if (typeof p.text === "string" && p.text) {
+                yield { type: "text", text: p.text };
+              }
+            }
+          }
+          if (json.usageMetadata) {
+            yield {
+              type: "usage",
+              input: json.usageMetadata.promptTokenCount ?? 0,
+              output: json.usageMetadata.candidatesTokenCount ?? 0,
+            };
+          }
+          if (json.error) {
+            throw new Error(json.error?.message || "Gemini stream error");
           }
         } else {
           // Anthropic event stream.
