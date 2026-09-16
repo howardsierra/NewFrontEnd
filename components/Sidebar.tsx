@@ -14,6 +14,8 @@ import {
   Wand2,
   BookText,
   DatabaseBackup,
+  Palette,
+  Regex,
 } from "lucide-react";
 import clsx from "clsx";
 
@@ -21,12 +23,16 @@ export function Sidebar({
   onOpenSettings,
   onOpenPresets,
   onOpenSnippets,
+  onOpenThemes,
+  onOpenRegex,
   onOpenBackup,
   onClose,
 }: {
   onOpenSettings: () => void;
   onOpenPresets: () => void;
   onOpenSnippets: () => void;
+  onOpenThemes: () => void;
+  onOpenRegex: () => void;
   onOpenBackup: () => void;
   onClose?: () => void;
 }) {
@@ -175,6 +181,26 @@ export function Sidebar({
         >
           <Wand2 size={16} />
           SillyTavern presets
+        </button>
+        <button
+          className="btn-ghost w-full justify-start"
+          onClick={() => {
+            onOpenThemes();
+            onClose?.();
+          }}
+        >
+          <Palette size={16} />
+          ST themes
+        </button>
+        <button
+          className="btn-ghost w-full justify-start"
+          onClick={() => {
+            onOpenRegex();
+            onClose?.();
+          }}
+        >
+          <Regex size={16} />
+          ST regex scripts
         </button>
         <button className="btn-ghost w-full justify-start" onClick={onOpenSettings}>
           <Settings size={16} />

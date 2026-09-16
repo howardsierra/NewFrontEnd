@@ -34,6 +34,12 @@ your keys directly when you'd rather skip the web platforms.
   estimate. Per-message cost in USD using **live OpenRouter pricing** and a
   curated OpenAI/Anthropic price table; per-model prices shown in the picker.
 - **Per-conversation controls** — system prompt, temperature, top-p, max tokens.
+- **SillyTavern toolkit** — three builders that export JSON straight into
+  **SillyTavern 1.18.0**: a **Chat Completion preset** builder (prompt-manager
+  markers, dual `prompt_order`), a **UI theme** builder (rgba colors, blur,
+  fonts, custom CSS, with a live preview), and a **regex script** builder with a
+  live tester (paste sample text, see the find/replace result), placement
+  targeting, and a starter pack. All save to a local library and import/export.
 - **Prompt & snippet library** — save reusable prompts and insert them with a
   `/` slash-command menu in the composer (↑↓/Enter), or set one as the chat's
   system prompt. Snippets with `{{placeholders}}` open a fill-in panel (Tab

@@ -12,6 +12,8 @@ import {
   ModelInfo,
 } from "./types";
 import { PresetDraft } from "./sillytavern";
+import { ThemeDraft } from "./sillytavern-theme";
+import { RegexDraft } from "./sillytavern-regex";
 import type { BackupFile, ImportSummary } from "./backup";
 
 export interface SavedPreset extends PresetDraft {
@@ -27,6 +29,16 @@ export interface Snippet {
   updatedAt: number;
 }
 
+export interface SavedTheme extends ThemeDraft {
+  id: string;
+  updatedAt: number;
+}
+
+export interface SavedRegex extends RegexDraft {
+  id: string;
+  updatedAt: number;
+}
+
 interface AppState {
   providers: ProviderConfig[];
   conversations: Conversation[];
@@ -35,6 +47,8 @@ interface AppState {
   modelCache: Record<string, ModelInfo[]>;
   presets: SavedPreset[];
   snippets: Snippet[];
+  themes: SavedTheme[];
+  regexScripts: SavedRegex[];
   hydrated: boolean;
   setHydrated: () => void;
 
@@ -69,6 +83,15 @@ interface AppState {
   removeSnippet: (id: string) => void;
   addSnippets: (items: Array<{ title: string; body: string }>) => void;
 
+  // theme actions
+  saveTheme: (draft: ThemeDraft, id?: string) => string;
+  removeTheme: (id: string) => void;
+
+  // regex actions
+  saveRegex: (draft: RegexDraft, id?: string) => string;
+  removeRegex: (id: string) => void;
+  addRegexScripts: (items: RegexDraft[]) => void;
+
   // backup
   importBackup: (data: BackupFile, mode: "merge" | "replace") => ImportSummary;
 }
@@ -96,6 +119,8 @@ export const useStore = create<AppState>()(
       modelCache: {},
       presets: [],
       snippets: [],
+      themes: [],
+      regexScripts: [],
       hydrated: false,
       setHydrated: () => set({ hydrated: true }),
 
@@ -255,6 +280,8 @@ export const useStore = create<AppState>()(
           providers: 0,
           presets: 0,
           snippets: 0,
+          themes: 0,
+          regexScripts: 0,
           conversations: 0,
           skipped: 0,
         };
@@ -264,10 +291,14 @@ export const useStore = create<AppState>()(
             providers: data.providers,
             presets: data.presets,
             snippets: data.snippets,
+            themes: data.themes ?? [],
+            regexScripts: data.regexScripts ?? [],
           };
           summary.providers = data.providers.length;
           summary.presets = data.presets.length;
           summary.snippets = data.snippets.length;
+          summary.themes = (data.themes ?? []).length;
+          summary.regexScripts = (data.regexScripts ?? []).length;
           if (data.conversations) {
             next.conversations = data.conversations;
             next.activeId = data.conversations[0]?.id ?? null;
@@ -317,6 +348,28 @@ export const useStore = create<AppState>()(
           return true;
         });
 
+        const existingTheme = new Set(state.themes.map((t) => t.name.toLowerCase()));
+        const newThemes = (data.themes ?? []).filter((t) => {
+          if (existingTheme.has(t.name.toLowerCase())) {
+            summary.skipped++;
+            return false;
+          }
+          existingTheme.add(t.name.toLowerCase());
+          summary.themes++;
+          return true;
+        });
+
+        const existingRegex = new Set(state.regexScripts.map((r) => r.scriptName.toLowerCase()));
+        const newRegex = (data.regexScripts ?? []).filter((r) => {
+          if (existingRegex.has(r.scriptName.toLowerCase())) {
+            summary.skipped++;
+            return false;
+          }
+          existingRegex.add(r.scriptName.toLowerCase());
+          summary.regexScripts++;
+          return true;
+        });
+
         // Regenerate ids on imported items to avoid collisions with existing.
         const reId = <T extends { id: string }>(arr: T[]): T[] =>
           arr.map((x) => ({ ...x, id: nanoid() }));
@@ -325,6 +378,8 @@ export const useStore = create<AppState>()(
           providers: [...state.providers, ...reId(newProviders)],
           presets: [...state.presets, ...reId(newPresets)],
           snippets: [...state.snippets, ...reId(newSnippets)],
+          themes: [...state.themes, ...reId(newThemes)],
+          regexScripts: [...state.regexScripts, ...reId(newRegex)],
         };
 
         if (data.conversations?.length) {
@@ -354,6 +409,48 @@ export const useStore = create<AppState>()(
           ],
         }));
       },
+
+      saveTheme: (draft, id) => {
+        const now = Date.now();
+        if (id) {
+          set((s) => ({
+            themes: s.themes.map((t) => (t.id === id ? { ...draft, id, updatedAt: now } : t)),
+          }));
+          return id;
+        }
+        const newId = nanoid();
+        set((s) => ({ themes: [{ ...draft, id: newId, updatedAt: now }, ...s.themes] }));
+        return newId;
+      },
+      removeTheme: (id) => set((s) => ({ themes: s.themes.filter((t) => t.id !== id) })),
+
+      saveRegex: (draft, id) => {
+        const now = Date.now();
+        if (id) {
+          set((s) => ({
+            regexScripts: s.regexScripts.map((r) =>
+              r.id === id ? { ...draft, id, updatedAt: now } : r
+            ),
+          }));
+          return id;
+        }
+        const newId = nanoid();
+        set((s) => ({
+          regexScripts: [{ ...draft, id: newId, updatedAt: now }, ...s.regexScripts],
+        }));
+        return newId;
+      },
+      removeRegex: (id) =>
+        set((s) => ({ regexScripts: s.regexScripts.filter((r) => r.id !== id) })),
+      addRegexScripts: (items) => {
+        const now = Date.now();
+        set((s) => ({
+          regexScripts: [
+            ...items.map((it) => ({ ...it, id: nanoid(), updatedAt: now })),
+            ...s.regexScripts,
+          ],
+        }));
+      },
     }),
     {
       name: "newfrontend-store",
@@ -364,6 +461,8 @@ export const useStore = create<AppState>()(
         activeId: s.activeId,
         presets: s.presets,
         snippets: s.snippets,
+        themes: s.themes,
+        regexScripts: s.regexScripts,
       }),
       onRehydrateStorage: () => (state) => {
         // Notify subscribers via an action (which calls set) — a direct
