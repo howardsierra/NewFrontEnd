@@ -12,12 +12,17 @@ import { Sparkles } from "lucide-react";
 import clsx from "clsx";
 
 export default function Page() {
-  const hydrated = useStore((s) => s.hydrated);
   const conversations = useStore((s) => s.conversations);
   const activeId = useStore((s) => s.activeId);
   const newConversation = useStore((s) => s.newConversation);
   const setActive = useStore((s) => s.setActive);
   const providers = useStore((s) => s.providers);
+
+  // Client-only gate. Renders the loading state on the server and on the first
+  // client render (so hydration matches), then flips true after mount — by
+  // which point zustand's synchronous localStorage rehydration has run.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [presetsOpen, setPresetsOpen] = useState(false);
@@ -25,9 +30,9 @@ export default function Page() {
   const [backupOpen, setBackupOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  // Ensure there's always an active conversation once hydrated.
+  // Ensure there's always an active conversation once mounted.
   useEffect(() => {
-    if (!hydrated) return;
+    if (!mounted) return;
     if (conversations.length === 0) {
       newConversation();
     } else if (!activeId || !conversations.some((c) => c.id === activeId)) {
@@ -36,7 +41,7 @@ export default function Page() {
     // Open settings automatically on first run when no providers exist.
     if (providers.length === 0) setSettingsOpen(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hydrated]);
+  }, [mounted]);
 
   // Mobile sidebar toggle via custom event from the model bar.
   useEffect(() => {
@@ -54,7 +59,7 @@ export default function Page() {
 
   const active = conversations.find((c) => c.id === activeId) ?? null;
 
-  if (!hydrated) {
+  if (!mounted) {
     return (
       <div className="grid h-screen place-items-center">
         <div className="flex items-center gap-2 text-ink-muted">

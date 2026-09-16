@@ -36,6 +36,7 @@ interface AppState {
   presets: SavedPreset[];
   snippets: Snippet[];
   hydrated: boolean;
+  setHydrated: () => void;
 
   // provider actions
   addProvider: (p: Omit<ProviderConfig, "id">) => string;
@@ -96,6 +97,7 @@ export const useStore = create<AppState>()(
       presets: [],
       snippets: [],
       hydrated: false,
+      setHydrated: () => set({ hydrated: true }),
 
       addProvider: (p) => {
         const id = nanoid();
@@ -364,7 +366,9 @@ export const useStore = create<AppState>()(
         snippets: s.snippets,
       }),
       onRehydrateStorage: () => (state) => {
-        if (state) state.hydrated = true;
+        // Notify subscribers via an action (which calls set) — a direct
+        // `state.hydrated = true` mutation does not trigger a re-render.
+        state?.setHydrated();
       },
     }
   )
