@@ -54,7 +54,7 @@ export function Sidebar({
           <Sparkles size={18} className="text-white" />
         </div>
         <div className="leading-tight">
-          <div className="text-sm font-semibold tracking-tight text-gradient">
+          <div className="font-display text-sm font-semibold tracking-tight text-gradient">
             NewFrontEnd
           </div>
           <div className="text-[11px] text-ink-faint">AI Studio</div>

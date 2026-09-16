@@ -72,6 +72,19 @@ body {
   background-attachment: fixed;
 }
 
+/* Manrope for headings/brand; DM Sans for body. */
+@layer base {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-display), var(--font-sans), ui-sans-serif, sans-serif;
+    letter-spacing: -0.012em;
+  }
+}
+
 ::selection {
   background: rgb(var(--c-accent) / 0.32);
   color: #fff;
