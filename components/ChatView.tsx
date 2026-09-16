@@ -7,28 +7,49 @@ import { Composer } from "./Composer";
 import { ModelBar } from "./ModelBar";
 import { useChat } from "@/lib/useChat";
 import { useStore } from "@/lib/store";
-import { Sparkles, FileText, Code2, Wand2 } from "lucide-react";
+import clsx from "clsx";
+import { FileText, Code2, Wand2, Lightbulb, ChevronRight } from "lucide-react";
 
 const SUGGESTIONS = [
   {
     icon: Wand2,
+    tile: "violet",
     title: "Draft a SillyTavern preset",
+    desc: "Personas, tone, sampler settings",
     prompt:
       "Help me build a SillyTavern preset. Ask me about the persona, tone, and formatting rules, then output the system prompt and recommended sampler settings.",
   },
   {
     icon: Code2,
-    title: "Review attached code",
+    tile: "blue",
+    title: "Build something",
+    desc: "Code, components, or prototypes",
     prompt:
       "I'll attach some HTML/CSS/JS files. Review them for bugs, accessibility, and performance, then suggest concrete fixes.",
   },
   {
     icon: FileText,
-    title: "Summarize a PDF",
+    tile: "peach",
+    title: "Summarize a document",
+    desc: "PDFs, notes, or long threads",
     prompt:
       "I'll attach a PDF. Give me a tight executive summary with the key points and any action items.",
   },
+  {
+    icon: Lightbulb,
+    tile: "green",
+    title: "Brainstorm ideas",
+    desc: "Think through concepts and angles",
+    prompt: "Brainstorm ten fresh, non-obvious ideas for my project and note the main risk of each.",
+  },
 ];
+
+const TILE: Record<string, string> = {
+  peach: "bg-[#f9eae0] text-[#cc7548]",
+  blue: "bg-[#e4eef9] text-[#4c83b8]",
+  violet: "bg-[#eee8fa] text-[#8061ba]",
+  green: "bg-[#e4f2e8] text-[#56966b]",
+};
 
 export function ChatView({ conv }: { conv: Conversation }) {
   const { send, stop, regenerate, generateImage, busy } = useChat();
@@ -65,7 +86,7 @@ export function ChatView({ conv }: { conv: Conversation }) {
             ready={ready}
           />
         ) : (
-          <div className="mx-auto max-w-3xl space-y-6 px-4 py-6">
+          <div className="mx-auto max-w-3xl space-y-8 px-4 py-8">
             {conv.messages.map((m, i) => (
               <MessageItem
                 key={m.id}
@@ -97,33 +118,43 @@ function Welcome({
 }) {
   return (
     <div className="mx-auto flex max-w-2xl flex-col items-center px-4 py-16 text-center">
-      <div className="relative mb-5">
-        <div className="absolute inset-0 -z-10 animate-glow-pulse rounded-[28px] bg-accent/40 blur-2xl" />
-        <div className="grid h-16 w-16 place-items-center rounded-[20px] bg-accent-grad shadow-glow ring-1 ring-white/15">
-          <Sparkles size={30} className="text-white" />
-        </div>
+      <div className="relative mb-6">
+        <div className="absolute inset-0 -z-10 animate-glow-pulse rounded-[24px] bg-accent/40 blur-2xl" />
+        <div
+          className="h-[64px] w-[64px] rounded-[20px] ring-1 ring-white/20"
+          style={{
+            background:
+              "radial-gradient(circle at 34% 27%, #fff 0 3%, #d8b9f8 13%, #926ede 39%, #4f3e9a 73%, #2d275c 100%)",
+            transform: "rotate(-9deg)",
+            boxShadow: "inset -8px -9px 15px rgba(49,38,81,0.53), 0 8px 22px rgba(136,117,198,0.28)",
+          }}
+        />
       </div>
       <h1 className="text-3xl font-semibold tracking-tight text-gradient">
-        What can I help you build?
+        What can I help you create?
       </h1>
       <p className="mt-2.5 text-sm text-ink-muted">
         {ready
-          ? "Pick a starting point or just start typing."
+          ? "Choose a starting point or ask me anything."
           : "Add a provider key and select a model in the top bar to begin."}
       </p>
 
-      <div className="mt-9 grid w-full gap-3 sm:grid-cols-3">
+      <div className="mt-9 grid w-full gap-3 sm:grid-cols-2">
         {SUGGESTIONS.map((s) => (
           <button
             key={s.title}
             disabled={!ready}
             onClick={() => onPick(s.prompt)}
-            className="group relative flex flex-col items-start gap-2.5 overflow-hidden rounded-2xl border border-line/80 bg-overlay/[0.02] p-4 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/40 hover:bg-overlay/[0.05] hover:shadow-glow disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0"
+            className="group flex items-center gap-3 rounded-2xl border border-line/80 bg-overlay/[0.02] p-3.5 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/40 hover:bg-overlay/[0.05] hover:shadow-glow disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0"
           >
-            <span className="grid h-9 w-9 place-items-center rounded-xl bg-accent-grad-soft text-accent-soft ring-1 ring-white/5 transition-transform group-hover:scale-105">
-              <s.icon size={18} />
+            <span className={clsx("grid h-10 w-10 shrink-0 place-items-center rounded-xl", TILE[s.tile])}>
+              <s.icon size={19} />
             </span>
-            <span className="text-sm font-medium text-ink">{s.title}</span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-medium text-ink">{s.title}</span>
+              <span className="block truncate text-xs text-ink-faint">{s.desc}</span>
+            </span>
+            <ChevronRight size={16} className="shrink-0 text-ink-faint opacity-0 transition group-hover:opacity-100" />
           </button>
         ))}
       </div>

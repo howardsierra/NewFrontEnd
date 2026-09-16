@@ -7,7 +7,6 @@ import {
   MessageSquare,
   Trash2,
   Settings,
-  Sparkles,
   Pencil,
   Check,
   X,
@@ -50,11 +49,13 @@ export function Sidebar({
   return (
     <div className="flex h-full w-72 flex-col border-r border-line/70 bg-bg-subtle/60 backdrop-blur-xl">
       <div className="flex items-center gap-2.5 px-4 py-4">
-        <div className="grid h-9 w-9 place-items-center rounded-xl bg-accent-grad shadow-glow ring-1 ring-white/10">
-          <Sparkles size={18} className="text-white" />
-        </div>
+        <span className="relative grid h-8 w-8 place-items-center">
+          <i className="absolute h-[22px] w-[7px] rounded-full bg-accent" />
+          <i className="absolute h-[22px] w-[7px] rounded-full bg-accent-glow" style={{ transform: "rotate(60deg)" }} />
+          <i className="absolute h-[22px] w-[7px] rounded-full bg-accent-soft" style={{ transform: "rotate(-60deg)" }} />
+        </span>
         <div className="leading-tight">
-          <div className="font-display text-sm font-semibold tracking-tight text-gradient">
+          <div className="font-display text-base font-bold tracking-tight text-gradient">
             NewFrontEnd
           </div>
           <div className="text-[11px] text-ink-faint">AI Studio</div>
@@ -70,10 +71,19 @@ export function Sidebar({
           }}
         >
           <Plus size={16} /> New chat
+          <kbd className="ml-auto rounded border border-white/25 px-1.5 py-0.5 text-[10px] font-normal text-white/70">
+            ⌘K
+          </kbd>
         </button>
       </div>
 
-      <div className="mt-3 flex-1 space-y-0.5 overflow-y-auto px-2 pb-2">
+      <div className="mt-4 flex items-center justify-between px-4 pb-1.5">
+        <span className="text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
+          Recent
+        </span>
+      </div>
+
+      <div className="flex-1 space-y-0.5 overflow-y-auto px-2 pb-2">
         {conversations.length === 0 && (
           <p className="px-3 py-6 text-center text-xs text-ink-faint">
             No conversations yet.
@@ -161,66 +171,81 @@ export function Sidebar({
         })}
       </div>
 
-      <div className="space-y-0.5 border-t border-line p-3">
-        <button
-          className="btn-ghost w-full justify-start"
-          onClick={() => {
-            onOpenSnippets();
-            onClose?.();
-          }}
-        >
-          <BookText size={16} />
-          Prompt library
-        </button>
-        <button
-          className="btn-ghost w-full justify-start"
-          onClick={() => {
-            onOpenPresets();
-            onClose?.();
-          }}
-        >
-          <Wand2 size={16} />
-          SillyTavern presets
-        </button>
-        <button
-          className="btn-ghost w-full justify-start"
-          onClick={() => {
-            onOpenThemes();
-            onClose?.();
-          }}
-        >
-          <Palette size={16} />
-          ST themes
-        </button>
-        <button
-          className="btn-ghost w-full justify-start"
-          onClick={() => {
-            onOpenRegex();
-            onClose?.();
-          }}
-        >
-          <Regex size={16} />
-          ST regex scripts
-        </button>
-        <button className="btn-ghost w-full justify-start" onClick={onOpenSettings}>
-          <Settings size={16} />
-          Providers & keys
-          {providers.length === 0 && (
-            <span className="ml-auto rounded-full bg-accent/20 px-2 py-0.5 text-[10px] text-accent-soft">
-              setup
-            </span>
-          )}
-        </button>
-        <button
-          className="btn-ghost w-full justify-start"
-          onClick={() => {
-            onOpenBackup();
-            onClose?.();
-          }}
-        >
-          <DatabaseBackup size={16} />
-          Backup & restore
-        </button>
+      <div className="border-t border-line p-3">
+        <span className="mb-1 block px-2 text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
+          Studio
+        </span>
+        <div className="space-y-0.5">
+          <button
+            className="btn-ghost w-full justify-start"
+            onClick={() => {
+              onOpenSnippets();
+              onClose?.();
+            }}
+          >
+            <BookText size={16} />
+            Prompt library
+          </button>
+          <button
+            className="btn-ghost w-full justify-start"
+            onClick={() => {
+              onOpenPresets();
+              onClose?.();
+            }}
+          >
+            <Wand2 size={16} />
+            SillyTavern presets
+          </button>
+          <button
+            className="btn-ghost w-full justify-start"
+            onClick={() => {
+              onOpenThemes();
+              onClose?.();
+            }}
+          >
+            <Palette size={16} />
+            ST themes
+          </button>
+          <button
+            className="btn-ghost w-full justify-start"
+            onClick={() => {
+              onOpenRegex();
+              onClose?.();
+            }}
+          >
+            <Regex size={16} />
+            ST regex scripts
+          </button>
+          <button className="btn-ghost w-full justify-start" onClick={onOpenSettings}>
+            <Settings size={16} />
+            Providers & keys
+            {providers.length === 0 && (
+              <span className="ml-auto rounded-full bg-accent/20 px-2 py-0.5 text-[10px] text-accent-soft">
+                setup
+              </span>
+            )}
+          </button>
+          <button
+            className="btn-ghost w-full justify-start"
+            onClick={() => {
+              onOpenBackup();
+              onClose?.();
+            }}
+          >
+            <DatabaseBackup size={16} />
+            Backup & restore
+          </button>
+        </div>
+
+        <div className="mt-2 flex items-center gap-2.5 border-t border-line pt-3">
+          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-accent-grad text-[11px] font-bold text-white ring-1 ring-white/10">
+            ME
+          </span>
+          <div className="min-w-0 leading-tight">
+            <div className="truncate text-xs font-medium text-ink">Local workspace</div>
+            <div className="truncate text-[10px] text-ink-faint">Keys stay in this browser</div>
+          </div>
+        </div>
       </div>
     </div>
   );
