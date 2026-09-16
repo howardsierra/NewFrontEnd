@@ -36,7 +36,7 @@ export function ModelBar({
   );
 
   return (
-    <div className="flex items-center gap-2 border-b border-line/70 bg-bg-subtle/50 px-3 py-2.5 backdrop-blur-xl">
+    <div className="flex items-center gap-2 border-b border-line/70 bg-bg-subtle/50 px-3 py-3 backdrop-blur-xl">
       <button
         className="btn-ghost px-2 lg:hidden"
         onClick={onToggleSidebar}
@@ -45,15 +45,17 @@ export function ModelBar({
         <Menu size={18} />
       </button>
 
-      {/* Provider picker */}
+      {/* Provider picker — Flux-style logo pill */}
       <Dropdown
-        label={provider?.label ?? "Provider"}
+        label={provider?.label ?? "No connection"}
         accent={provider ? PROVIDER_META[provider.kind].accent : undefined}
         icon={
           <span
-            className="h-2 w-2 rounded-full"
+            className="grid h-7 w-7 shrink-0 place-items-center rounded-lg text-[12px] font-bold text-white"
             style={{ background: provider ? PROVIDER_META[provider.kind].accent : "#5e6680" }}
-          />
+          >
+            {(provider?.label ?? "?").slice(0, 1).toUpperCase()}
+          </span>
         }
       >
         {(close) => (
@@ -67,7 +69,7 @@ export function ModelBar({
               <button
                 key={p.id}
                 className={clsx(
-                  "flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-bg-elevated",
+                  "flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm hover:bg-bg-elevated",
                   p.id === conv.providerId && "text-accent-soft"
                 )}
                 onClick={() => {
@@ -76,9 +78,11 @@ export function ModelBar({
                 }}
               >
                 <span
-                  className="h-2 w-2 rounded-full"
+                  className="grid h-6 w-6 shrink-0 place-items-center rounded-md text-[11px] font-bold text-white"
                   style={{ background: PROVIDER_META[p.kind].accent }}
-                />
+                >
+                  {p.label.slice(0, 1).toUpperCase()}
+                </span>
                 {p.label}
               </button>
             ))}
@@ -94,6 +98,10 @@ export function ModelBar({
 
       <div className="flex-1" />
 
+      <span className="hidden items-center gap-1.5 rounded-full border border-line px-2.5 py-1 text-[11px] text-ink-muted md:flex">
+        <span className="h-1.5 w-1.5 rounded-full bg-green-400/80" />
+        Private
+      </span>
       <ThemeToggle />
       <TokenMeter conv={conv} />
       <ParamsButton conv={conv} />
