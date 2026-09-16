@@ -41,6 +41,15 @@ export const PROVIDER_META: Record<ProviderKind, ProviderMeta> = {
     hint: "GPT models via the official API.",
     accent: "#10a37f",
   },
+  gemini: {
+    kind: "gemini",
+    label: "Google Gemini",
+    baseUrl: "https://generativelanguage.googleapis.com/v1beta",
+    editableBaseUrl: false,
+    keysUrl: "https://aistudio.google.com/apikey",
+    hint: "Gemini models via Google AI Studio, native protocol.",
+    accent: "#4c83b8",
+  },
   custom: {
     kind: "custom",
     label: "Custom (OpenAI-compatible)",
@@ -72,6 +81,13 @@ export const CUSTOM_PRESETS: CustomPreset[] = [
     baseUrl: "https://api.groq.com/openai/v1",
     keysUrl: "https://console.groq.com/keys",
     defaultModel: "llama-3.3-70b-versatile",
+  },
+  {
+    id: "nanogpt",
+    label: "NanoGPT",
+    baseUrl: "https://nano-gpt.com/api/v1",
+    keysUrl: "https://nano-gpt.com/api",
+    defaultModel: "gpt-4o-mini",
   },
   {
     id: "deepseek",
@@ -153,5 +169,11 @@ export const FALLBACK_MODELS: Record<ProviderKind, string[]> = {
     "claude-3-5-haiku-20241022",
   ],
   openai: ["gpt-4o", "gpt-4o-mini", "o1", "o3-mini"],
+  gemini: [
+    "gemini-2.5-pro",
+    "gemini-2.5-flash",
+    "gemini-2.0-flash",
+    "gemini-2.5-flash-image",
+  ],
   custom: [],
 };

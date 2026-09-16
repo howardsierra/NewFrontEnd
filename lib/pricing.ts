@@ -40,6 +40,13 @@ const STATIC_PRICES: Array<{ match: RegExp; price: Price }> = [
   { match: /o1-pro/, price: { input: 150, output: 600 } },
   { match: /o1/, price: { input: 15, output: 60 } },
   { match: /o3/, price: { input: 2, output: 8 } },
+
+  // ---- Google Gemini ----
+  { match: /gemini.*2\.5.*pro/, price: { input: 1.25, output: 10 } },
+  { match: /gemini.*2\.5.*flash/, price: { input: 0.3, output: 2.5 } },
+  { match: /gemini.*2\.0.*flash/, price: { input: 0.1, output: 0.4 } },
+  { match: /gemini.*1\.5.*pro/, price: { input: 1.25, output: 5 } },
+  { match: /gemini.*1\.5.*flash/, price: { input: 0.075, output: 0.3 } },
 ];
 
 /** Strip a provider prefix (e.g. "anthropic/claude-...") and lowercase. */

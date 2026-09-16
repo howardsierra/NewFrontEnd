@@ -100,6 +100,7 @@ const SOURCE_MAP: Record<ProviderKind, string> = {
   openai: "openai",
   anthropic: "claude",
   openrouter: "openrouter",
+  gemini: "makersuite",
   custom: "custom",
 };
 

@@ -26,6 +26,12 @@ export default function Page() {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
+  // Apply the chosen UI theme to the document root.
+  const uiTheme = useStore((s) => s.uiTheme);
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", uiTheme);
+  }, [uiTheme]);
+
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [presetsOpen, setPresetsOpen] = useState(false);
   const [snippetsOpen, setSnippetsOpen] = useState(false);

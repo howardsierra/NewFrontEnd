@@ -88,7 +88,7 @@ export function Sidebar({
                 "group relative flex items-center gap-2 rounded-lg px-2.5 py-2 text-sm transition-colors",
                 isActive
                   ? "bg-gradient-to-r from-accent/15 via-accent/[0.06] to-transparent text-ink"
-                  : "text-ink-muted hover:bg-white/[0.04] hover:text-ink"
+                  : "text-ink-muted hover:bg-overlay/[0.05] hover:text-ink"
               )}
             >
               {isActive && (

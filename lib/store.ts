@@ -49,8 +49,10 @@ interface AppState {
   snippets: Snippet[];
   themes: SavedTheme[];
   regexScripts: SavedRegex[];
+  uiTheme: "dark" | "light";
   hydrated: boolean;
   setHydrated: () => void;
+  setUiTheme: (t: "dark" | "light") => void;
 
   // provider actions
   addProvider: (p: Omit<ProviderConfig, "id">) => string;
@@ -121,8 +123,10 @@ export const useStore = create<AppState>()(
       snippets: [],
       themes: [],
       regexScripts: [],
+      uiTheme: "dark",
       hydrated: false,
       setHydrated: () => set({ hydrated: true }),
+      setUiTheme: (t) => set({ uiTheme: t }),
 
       addProvider: (p) => {
         const id = nanoid();
@@ -463,6 +467,7 @@ export const useStore = create<AppState>()(
         snippets: s.snippets,
         themes: s.themes,
         regexScripts: s.regexScripts,
+        uiTheme: s.uiTheme,
       }),
       onRehydrateStorage: () => (state) => {
         // Notify subscribers via an action (which calls set) — a direct

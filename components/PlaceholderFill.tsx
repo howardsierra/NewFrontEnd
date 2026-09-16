@@ -68,7 +68,7 @@ export function PlaceholderFill({
         ))}
       </div>
 
-      <div className="border-t border-line bg-white/[0.015] px-3 py-2">
+      <div className="border-t border-line bg-overlay/[0.02] px-3 py-2">
         <p className="mb-2 line-clamp-3 whitespace-pre-wrap text-[12px] leading-relaxed text-ink-muted">
           {preview}
         </p>

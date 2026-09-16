@@ -12,6 +12,8 @@ import {
   Search,
   Menu,
   Gauge,
+  Sun,
+  Moon,
 } from "lucide-react";
 import clsx from "clsx";
 import { conversationUsage, estimateContextTokens, formatTokens } from "@/lib/tokens";
@@ -92,9 +94,25 @@ export function ModelBar({
 
       <div className="flex-1" />
 
+      <ThemeToggle />
       <TokenMeter conv={conv} />
       <ParamsButton conv={conv} />
     </div>
+  );
+}
+
+function ThemeToggle() {
+  const uiTheme = useStore((s) => s.uiTheme);
+  const setUiTheme = useStore((s) => s.setUiTheme);
+  return (
+    <button
+      className="btn-ghost px-2"
+      onClick={() => setUiTheme(uiTheme === "dark" ? "light" : "dark")}
+      title={uiTheme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
+      aria-label="Toggle theme"
+    >
+      {uiTheme === "dark" ? <Sun size={17} /> : <Moon size={17} />}
+    </button>
   );
 }
 

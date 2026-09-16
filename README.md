@@ -12,12 +12,17 @@ your keys directly when you'd rather skip the web platforms.
 ## Features
 
 - **Any OpenAI-compatible API key, in one UI** — OpenRouter, Anthropic (native
-  Messages API), OpenAI, plus unlimited custom OpenAI-compatible providers.
-  One-click presets for Groq, DeepSeek, Mistral, xAI (Grok), Together,
-  Fireworks, DeepInfra, Perplexity, and local servers (LM Studio / Ollama) —
-  the base URL is prefilled, so you just paste your key. Keyless local servers,
-  custom request headers (e.g. Azure’s `api-key`), and a **Test connection**
-  button are all supported.
+  Messages API), OpenAI, **Google Gemini** (native `generateContent`), plus
+  unlimited custom OpenAI-compatible providers. One-click presets for Groq,
+  NanoGPT, DeepSeek, Mistral, xAI (Grok), Together, Fireworks, DeepInfra,
+  Perplexity, and local servers (LM Studio / Ollama) — the base URL is
+  prefilled, so you just paste your key. Optional OpenAI **Responses API**
+  (`/responses`), keyless local servers, custom request headers (e.g. Azure’s
+  `api-key`), and a **Test connection** button are all supported.
+- **Light & dark themes** — a refined violet dark theme and a warm premium light
+  theme, toggleable from the top bar (your choice persists).
+- **Image generation** — an image mode in the composer that generates images via
+  OpenAI (`/images/generations`), Gemini, or OpenRouter, shown inline in chat.
 - **Streaming chat** with markdown rendering, syntax-highlighted code blocks,
   and one-click copy.
 - **File understanding** — attach and parse HTML, CSS, JavaScript/TypeScript,
