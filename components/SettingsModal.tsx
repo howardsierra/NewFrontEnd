@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useStore } from "@/lib/store";
 import { PROVIDER_META, CUSTOM_PRESETS, CustomPreset } from "@/lib/providers";
 import type { ProviderConfig, ProviderKind } from "@/lib/types";
@@ -13,6 +13,7 @@ import {
   ExternalLink,
   KeyRound,
   ShieldCheck,
+  ShieldAlert,
   PlugZap,
   Check,
   AlertTriangle,
@@ -28,6 +29,20 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
   const providers = useStore((s) => s.providers);
   const addProvider = useStore((s) => s.addProvider);
   const [customMenu, setCustomMenu] = useState(false);
+
+  // Verify the browser will actually persist keys (blocked in private mode /
+  // when site data is disabled).
+  const [storageOk, setStorageOk] = useState(true);
+  useEffect(() => {
+    try {
+      const k = "__flux_storage_test__";
+      localStorage.setItem(k, "1");
+      localStorage.removeItem(k);
+      setStorageOk(true);
+    } catch {
+      setStorageOk(false);
+    }
+  }, []);
 
   const addNative = (kind: ProviderKind) => {
     const meta = PROVIDER_META[kind];
@@ -71,11 +86,24 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
         <div className="flex items-start gap-2 border-b border-line bg-bg-subtle/50 px-5 py-3 text-xs text-ink-muted">
           <ShieldCheck size={15} className="mt-0.5 shrink-0 text-green-400/80" />
           <p>
-            Keys are stored only in this browser (localStorage) and sent directly to a
-            thin proxy that forwards them to the provider. They are never persisted on a
-            server.
+            Keys are <span className="text-ink">saved automatically</span> in this browser
+            (localStorage) as you type — no save button needed — and sent per request to a
+            thin proxy that forwards them to the provider. They are never stored on a server.
+            Each browser and URL keeps its own keys, so use the same address each time (or
+            move them with <span className="text-ink">Backup &amp; restore</span>).
           </p>
         </div>
+
+        {!storageOk && (
+          <div className="flex items-start gap-2 border-b border-line bg-red-500/10 px-5 py-3 text-xs text-red-300">
+            <ShieldAlert size={15} className="mt-0.5 shrink-0" />
+            <p>
+              This browser is <span className="font-semibold">blocking local storage</span>, so
+              your keys can&apos;t be saved. Turn off private/incognito mode or allow site data
+              for this page, then re-enter them.
+            </p>
+          </div>
+        )}
 
         <div className="max-h-[58vh] space-y-3 overflow-y-auto p-5">
           {providers.length === 0 && (
@@ -279,6 +307,14 @@ function ProviderRow({ provider }: { provider: ProviderConfig }) {
             {show ? <EyeOff size={15} /> : <Eye size={15} />}
           </button>
         </div>
+
+        {provider.apiKey ? (
+          <p className="flex items-center gap-1 text-[11px] text-green-400/80">
+            <Check size={12} /> Saved to this browser
+          </p>
+        ) : !isCustom ? (
+          <p className="text-[11px] text-ink-faint">Paste a key — it saves automatically.</p>
+        ) : null}
 
         {isCustom && (
           <div>
