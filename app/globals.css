@@ -289,6 +289,52 @@ body::after {
 .thinking-dots span:nth-child(3) {
   animation-delay: 0.4s;
 }
+
+/* Live streaming caret */
+.stream-caret {
+  display: inline-block;
+  width: 7px;
+  height: 1em;
+  margin-left: 2px;
+  border-radius: 2px;
+  vertical-align: text-bottom;
+  background: linear-gradient(180deg, rgb(var(--c-accent-soft)), rgb(var(--c-accent-glow)));
+  animation: caret-blink 1.05s steps(2, jump-none) infinite;
+}
+@keyframes caret-blink {
+  0%, 50% { opacity: 1; }
+  50.01%, 100% { opacity: 0.15; }
+}
+
+/* Ambient aurora (welcome) */
+.aurora-blob {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(60px);
+  pointer-events: none;
+  opacity: 0.5;
+  will-change: transform;
+}
+@keyframes aurora-a {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(26px, -18px) scale(1.18); }
+}
+@keyframes aurora-b {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(-28px, 14px) scale(1.12); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aurora-blob,
+  .stream-caret,
+  .animate-glow-pulse,
+  .thinking-dots span {
+    animation: none !important;
+  }
+  .stream-caret {
+    opacity: 0.8;
+  }
+}
 @keyframes pulse-dot {
   0%,
   80%,

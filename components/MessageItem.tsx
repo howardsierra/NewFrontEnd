@@ -122,7 +122,10 @@ export function MessageItem({
             <span>{message.error}</span>
           </div>
         ) : message.content ? (
-          <Markdown content={message.content} />
+          <>
+            <Markdown content={message.content} />
+            {message.streaming && <span className="stream-caret" aria-hidden />}
+          </>
         ) : message.streaming ? (
           <div className="thinking-dots flex items-center gap-1 py-2">
             <span /> <span /> <span />
