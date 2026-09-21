@@ -65,7 +65,7 @@ export function MessageItem({
       <div className="group flex animate-fade-in flex-col items-end gap-2">
         {attachments}
         {message.content && (
-          <div className="max-w-[85%] whitespace-pre-wrap rounded-2xl rounded-br-md bg-overlay/[0.06] px-4 py-2.5 text-[15px] leading-relaxed text-ink">
+          <div className="max-w-[85%] overflow-hidden whitespace-pre-wrap break-words rounded-2xl rounded-br-md bg-overlay/[0.06] px-4 py-2.5 text-[15px] leading-relaxed text-ink">
             {message.content}
           </div>
         )}

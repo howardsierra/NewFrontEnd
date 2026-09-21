@@ -71,7 +71,7 @@ export function ChatView({ conv }: { conv: Conversation }) {
   }, [conv.messages.length, lastContent]);
 
   return (
-    <div className="flex min-w-0 flex-1 flex-col">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col">
       <ModelBar
         conv={conv}
         onToggleSidebar={() =>
@@ -79,7 +79,7 @@ export function ChatView({ conv }: { conv: Conversation }) {
         }
       />
 
-      <div ref={scrollRef} className="flex-1 overflow-y-auto">
+      <div ref={scrollRef} className="min-h-0 min-w-0 flex-1 overflow-y-auto">
         {conv.messages.length === 0 ? (
           <Welcome
             onPick={(p) => send(p, [])}

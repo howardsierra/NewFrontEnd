@@ -182,6 +182,13 @@ body {
 /* Markdown prose */
 .prose-chat {
   @apply text-[15px] leading-[1.7];
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+.prose-chat img,
+.prose-chat table {
+  max-width: 100%;
 }
 .prose-chat > * + * {
   margin-top: 0.85em;
@@ -231,6 +238,7 @@ body {
 /* Code blocks stay dark in both themes (github-dark highlighting). */
 .prose-chat pre {
   @apply rounded-xl overflow-x-auto my-3 text-[13px] leading-relaxed;
+  max-width: 100%;
   background: #0b0e16 !important;
   border: 1px solid var(--hairline);
   box-shadow: 0 8px 24px -16px rgba(0, 0, 0, 0.8);
