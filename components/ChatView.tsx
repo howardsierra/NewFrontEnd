@@ -117,7 +117,17 @@ function Welcome({
   ready: boolean;
 }) {
   return (
-    <div className="mx-auto flex max-w-2xl flex-col items-center px-4 py-16 text-center">
+    <div className="relative mx-auto flex max-w-2xl flex-col items-center px-4 py-16 text-center">
+      <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-72 overflow-hidden">
+        <span
+          className="aurora-blob left-[18%] top-2 h-40 w-40"
+          style={{ background: "rgb(var(--c-accent) / 0.55)", animation: "aurora-a 9s ease-in-out infinite" }}
+        />
+        <span
+          className="aurora-blob right-[16%] top-10 h-44 w-44"
+          style={{ background: "rgb(var(--c-accent-glow) / 0.5)", animation: "aurora-b 11s ease-in-out infinite" }}
+        />
+      </div>
       <div className="relative mb-6">
         <div className="absolute inset-0 -z-10 animate-glow-pulse rounded-[24px] bg-accent/40 blur-2xl" />
         <div
