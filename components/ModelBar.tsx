@@ -14,6 +14,7 @@ import {
   Gauge,
   Sun,
   Moon,
+  Drama,
 } from "lucide-react";
 import clsx from "clsx";
 import { conversationUsage, estimateContextTokens, formatTokens } from "@/lib/tokens";
@@ -96,6 +97,8 @@ export function ModelBar({
         onPick={(m) => setConversationModel(conv.id, m)}
       />
 
+      <PersonaPill conv={conv} />
+
       <div className="flex-1" />
 
       <span className="hidden items-center gap-1.5 rounded-full border border-line px-2.5 py-1 text-[11px] text-ink-muted md:flex">
@@ -106,6 +109,61 @@ export function ModelBar({
       <TokenMeter conv={conv} />
       <ParamsButton conv={conv} />
     </div>
+  );
+}
+
+function PersonaPill({ conv }: { conv: Conversation }) {
+  const personas = useStore((s) => s.personas);
+  const setConversationPersona = useStore((s) => s.setConversationPersona);
+  const active = personas.find((p) => p.id === conv.personaId) ?? null;
+
+  return (
+    <Dropdown
+      label={active ? active.name : "Persona"}
+      icon={<span className="text-[15px] leading-none">{active ? active.emoji : "🎭"}</span>}
+    >
+      {(close) => (
+        <div className="w-60 py-1">
+          <button
+            className={clsx(
+              "flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-bg-elevated",
+              !conv.personaId && "text-accent-soft"
+            )}
+            onClick={() => {
+              setConversationPersona(conv.id, null);
+              close();
+            }}
+          >
+            <span className="text-ink-faint">∅</span> No persona
+          </button>
+          {personas.map((p) => (
+            <button
+              key={p.id}
+              className={clsx(
+                "flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-bg-elevated",
+                p.id === conv.personaId && "text-accent-soft"
+              )}
+              onClick={() => {
+                setConversationPersona(conv.id, p.id);
+                close();
+              }}
+            >
+              <span className="text-[15px] leading-none">{p.emoji}</span>
+              <span className="truncate">{p.name}</span>
+            </button>
+          ))}
+          <button
+            className="mt-1 flex w-full items-center gap-2 border-t border-line px-3 py-2 text-left text-sm text-accent-soft hover:bg-bg-elevated"
+            onClick={() => {
+              document.dispatchEvent(new CustomEvent("open-personas"));
+              close();
+            }}
+          >
+            <Drama size={14} /> Manage personas…
+          </button>
+        </div>
+      )}
+    </Dropdown>
   );
 }
 

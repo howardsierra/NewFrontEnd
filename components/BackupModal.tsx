@@ -27,6 +27,7 @@ export function BackupModal({ onClose }: { onClose: () => void }) {
   const snippets = useStore((s) => s.snippets);
   const themes = useStore((s) => s.themes);
   const regexScripts = useStore((s) => s.regexScripts);
+  const personas = useStore((s) => s.personas);
   const conversations = useStore((s) => s.conversations);
   const importBackup = useStore((s) => s.importBackup);
 
@@ -43,7 +44,7 @@ export function BackupModal({ onClose }: { onClose: () => void }) {
 
   const makeFile = (): BackupFile =>
     buildBackup(
-      { providers, presets, snippets, themes, regexScripts, conversations },
+      { providers, presets, snippets, themes, regexScripts, personas, conversations },
       { includeKeys, includeConversations }
     );
 
@@ -119,6 +120,7 @@ export function BackupModal({ onClose }: { onClose: () => void }) {
               <span className="chip">{snippets.length} snippets</span>
               <span className="chip">{themes.length} themes</span>
               <span className="chip">{regexScripts.length} regex</span>
+              <span className="chip">{personas.length} personas</span>
               {includeConversations && (
                 <span className="chip">{convCount} conversations</span>
               )}
@@ -210,7 +212,8 @@ export function BackupModal({ onClose }: { onClose: () => void }) {
                   {result.mode === "replace" ? "Loaded" : "Added"}{" "}
                   {result.summary.providers} providers, {result.summary.presets}{" "}
                   presets, {result.summary.snippets} snippets,{" "}
-                  {result.summary.themes} themes, {result.summary.regexScripts} regex
+                  {result.summary.themes} themes, {result.summary.regexScripts} regex,{" "}
+                  {result.summary.personas} personas
                   {result.summary.conversations
                     ? `, ${result.summary.conversations} conversations`
                     : ""}

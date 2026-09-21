@@ -15,6 +15,7 @@ import {
   DatabaseBackup,
   Palette,
   Regex,
+  Drama,
 } from "lucide-react";
 import clsx from "clsx";
 
@@ -24,6 +25,7 @@ export function Sidebar({
   onOpenSnippets,
   onOpenThemes,
   onOpenRegex,
+  onOpenPersonas,
   onOpenBackup,
   onClose,
 }: {
@@ -32,6 +34,7 @@ export function Sidebar({
   onOpenSnippets: () => void;
   onOpenThemes: () => void;
   onOpenRegex: () => void;
+  onOpenPersonas: () => void;
   onOpenBackup: () => void;
   onClose?: () => void;
 }) {
@@ -185,6 +188,16 @@ export function Sidebar({
           >
             <BookText size={16} />
             Prompt library
+          </button>
+          <button
+            className="btn-ghost w-full justify-start"
+            onClick={() => {
+              onOpenPersonas();
+              onClose?.();
+            }}
+          >
+            <Drama size={16} />
+            Personas
           </button>
           <button
             className="btn-ghost w-full justify-start"
