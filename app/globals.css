@@ -90,6 +90,23 @@ body {
   color: #fff;
 }
 
+/* Subtle film-grain texture over the whole UI for a premium matte finish. */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+  opacity: 0.04;
+  mix-blend-mode: soft-light;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 160px 160px;
+}
+:root[data-theme="light"] body::after {
+  opacity: 0.03;
+  mix-blend-mode: multiply;
+}
+
 /* Scrollbars */
 * {
   scrollbar-width: thin;
@@ -238,13 +255,23 @@ body {
   background: rgb(var(--c-accent) / 0.12);
   border: 1px solid rgb(var(--c-accent) / 0.16);
 }
-/* Code blocks stay dark in both themes (github-dark highlighting). */
+/* Code blocks live inside a .code-block wrapper (see Markdown.tsx). */
+.prose-chat .code-block {
+  @apply my-3 overflow-hidden rounded-xl;
+  background: #0b0e16;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 10px 30px -18px rgba(0, 0, 0, 0.85);
+}
+.prose-chat .code-head {
+  @apply flex items-center justify-between px-3 py-1.5 text-[11px] text-ink-faint;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.02);
+}
 .prose-chat pre {
-  @apply rounded-xl overflow-x-auto my-3 text-[13px] leading-relaxed;
+  @apply overflow-x-auto text-[13px] leading-relaxed;
   max-width: 100%;
-  background: #0b0e16 !important;
-  border: 1px solid var(--hairline);
-  box-shadow: 0 8px 24px -16px rgba(0, 0, 0, 0.8);
+  margin: 0;
+  background: transparent !important;
 }
 .prose-chat pre code {
   @apply block p-3.5 font-mono;

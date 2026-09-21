@@ -50,9 +50,10 @@ export function Sidebar({
   const [draft, setDraft] = useState("");
 
   return (
-    <div className="flex h-full w-72 flex-col border-r border-line/70 bg-bg-subtle/60 backdrop-blur-xl">
+    <div className="flex h-full w-72 flex-col border-r border-line/70 bg-gradient-to-b from-bg-elevated/30 to-bg-subtle/60 backdrop-blur-xl">
       <div className="flex items-center gap-2.5 px-4 py-4">
         <span className="relative grid h-8 w-8 place-items-center">
+          <span className="absolute inset-0 -z-10 rounded-full bg-accent/45 blur-md" />
           <i className="absolute h-[22px] w-[7px] rounded-full bg-accent" />
           <i className="absolute h-[22px] w-[7px] rounded-full bg-accent-glow" style={{ transform: "rotate(60deg)" }} />
           <i className="absolute h-[22px] w-[7px] rounded-full bg-accent-soft" style={{ transform: "rotate(-60deg)" }} />
@@ -100,7 +101,7 @@ export function Sidebar({
               className={clsx(
                 "group relative flex items-center gap-2 rounded-lg px-2.5 py-2 text-sm transition-colors",
                 isActive
-                  ? "bg-gradient-to-r from-accent/15 via-accent/[0.06] to-transparent text-ink"
+                  ? "bg-gradient-to-r from-accent/20 via-accent/[0.07] to-transparent text-ink ring-1 ring-inset ring-accent/15"
                   : "text-ink-muted hover:bg-overlay/[0.05] hover:text-ink"
               )}
             >

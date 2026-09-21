@@ -9,8 +9,12 @@ import { Check, Copy } from "lucide-react";
 function CodeBlock({ children }: { children: React.ReactNode }) {
   const [copied, setCopied] = useState(false);
 
+  // Extract the language from the child <code class="language-xxx">.
+  const codeEl: any = Array.isArray(children) ? children[0] : children;
+  const cls: string = codeEl?.props?.className || "";
+  const lang = /language-([\w-]+)/.exec(cls)?.[1] || "code";
+
   const copy = () => {
-    // Extract raw text from the rendered <code> children.
     const text = extractText(children);
     navigator.clipboard.writeText(text).then(() => {
       setCopied(true);
@@ -19,14 +23,25 @@ function CodeBlock({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <div className="group relative">
-      <button
-        onClick={copy}
-        className="absolute right-2 top-2 z-10 rounded-md border border-line bg-bg-elevated/80 p-1.5 text-ink-muted opacity-0 backdrop-blur transition group-hover:opacity-100 hover:text-ink"
-        aria-label="Copy code"
-      >
-        {copied ? <Check size={14} className="text-green-400" /> : <Copy size={14} />}
-      </button>
+    <div className="code-block group">
+      <div className="code-head">
+        <span className="font-mono uppercase tracking-wide">{lang}</span>
+        <button
+          onClick={copy}
+          className="flex items-center gap-1 rounded px-1.5 py-0.5 text-ink-faint transition hover:bg-white/10 hover:text-ink"
+          aria-label="Copy code"
+        >
+          {copied ? (
+            <>
+              <Check size={12} className="text-green-400" /> Copied
+            </>
+          ) : (
+            <>
+              <Copy size={12} /> Copy
+            </>
+          )}
+        </button>
+      </div>
       <pre>{children}</pre>
     </div>
   );
