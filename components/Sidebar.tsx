@@ -59,9 +59,9 @@ export function Sidebar({
         </span>
         <div className="leading-tight">
           <div className="font-display text-base font-bold tracking-tight text-gradient">
-            NewFrontEnd
+            Flux.AI
           </div>
-          <div className="text-[11px] text-ink-faint">AI Studio</div>
+          <div className="text-[11px] text-ink-faint">AI workspace</div>
         </div>
       </div>
 
