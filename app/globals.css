@@ -116,6 +116,7 @@ body {
     backdrop-filter: blur(16px) saturate(140%);
     -webkit-backdrop-filter: blur(16px) saturate(140%);
     border: 1px solid var(--hairline);
+    box-shadow: 0 1px 0 0 rgb(var(--c-overlay) / 0.05) inset;
   }
 
   .btn {
@@ -164,7 +165,9 @@ body {
     backdrop-filter: blur(18px) saturate(140%);
     -webkit-backdrop-filter: blur(18px) saturate(140%);
     border: 1px solid var(--hairline);
-    box-shadow: 0 1px 0 0 rgb(var(--c-overlay) / 0.04) inset, 0 24px 70px -28px rgba(0, 0, 0, 0.55);
+    box-shadow:
+      0 1px 0 0 rgb(var(--c-overlay) / 0.06) inset,
+      0 30px 80px -30px rgba(0, 0, 0, 0.62);
   }
   .chip {
     @apply inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs text-ink-muted;

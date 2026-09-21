@@ -176,7 +176,7 @@ export function Composer({
     <div className="px-3 pb-4 pt-1 sm:px-6">
       <div
         className={clsx(
-          "glass relative mx-auto max-w-3xl rounded-[20px] p-2 shadow-panel transition-all duration-200 focus-within:border-accent/40 focus-within:shadow-glow",
+          "glass relative mx-auto max-w-3xl rounded-[26px] p-2.5 shadow-[0_22px_60px_-26px_rgba(0,0,0,0.6)] ring-1 ring-overlay/[0.04] transition-all duration-200 focus-within:ring-accent/30 focus-within:shadow-glow",
           dragOver && "border-accent shadow-glow"
         )}
         onDragOver={(e) => {
