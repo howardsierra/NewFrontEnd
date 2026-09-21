@@ -65,7 +65,7 @@ export function validateBackup(
   }
   const j = json as Record<string, unknown>;
   if (j.kind !== BACKUP_KIND) {
-    return { ok: false, error: "This file isn't a NewFrontEnd backup." };
+    return { ok: false, error: "This file isn't a Flux.AI backup." };
   }
   if (typeof j.version !== "number" || j.version > BACKUP_VERSION) {
     return {
@@ -99,5 +99,5 @@ export function backupFilename(): string {
   const stamp = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(
     d.getDate()
   ).padStart(2, "0")}`;
-  return `newfrontend-backup-${stamp}.json`;
+  return `flux-ai-backup-${stamp}.json`;
 }

@@ -43,7 +43,7 @@ function buildOpenAiCall(req: ChatRequest): UpstreamCall {
   if (req.apiKey) headers["Authorization"] = `Bearer ${req.apiKey}`;
   if (req.kind === "openrouter") {
     headers["HTTP-Referer"] = "https://github.com/howardsierra/newfrontend";
-    headers["X-Title"] = "NewFrontEnd";
+    headers["X-Title"] = "Flux.AI";
   }
   // User-supplied headers win (e.g. Azure's `api-key`).
   if (req.headers) Object.assign(headers, req.headers);

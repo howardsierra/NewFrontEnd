@@ -19,9 +19,9 @@ const mono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "NewFrontEnd — Multi-Provider AI Studio",
+  title: "Flux.AI — Multi-Provider AI Workspace",
   description:
-    "An attractive front end for OpenRouter, Anthropic, OpenAI, and custom OpenAI-compatible providers. Chat, attach files, craft presets.",
+    "An attractive workspace for OpenRouter, Anthropic, OpenAI, Gemini, and custom OpenAI-compatible providers. Chat, attach files, generate images, and craft presets, personas, themes & regex.",
 };
 
 export const viewport: Viewport = {

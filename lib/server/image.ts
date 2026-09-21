@@ -46,7 +46,7 @@ export function buildImageCall(req: ImageRequest): ImageCall {
 
   if (req.kind === "openrouter") {
     headers["HTTP-Referer"] = "https://github.com/howardsierra/newfrontend";
-    headers["X-Title"] = "NewFrontEnd";
+    headers["X-Title"] = "Flux.AI";
     return {
       url: `${base(req)}/chat/completions`,
       headers,
