@@ -91,6 +91,8 @@ export interface Conversation {
   messages: ChatMessage[];
   providerId: string | null;
   model: string | null;
+  /** Optional active persona (advanced system prompt) for this conversation. */
+  personaId?: string | null;
   params: GenerationParams;
   createdAt: number;
   updatedAt: number;

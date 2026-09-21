@@ -6,13 +6,14 @@ import { attachmentToPrompt } from "./files";
 import type { Attachment, ChatRequest, Conversation } from "./types";
 import { PROVIDER_META } from "./providers";
 import { resolvePrice, costFor } from "./pricing";
+import { composePersona } from "./personas";
 import { nanoid } from "nanoid";
 
-/** Build the provider-agnostic message array from a conversation's history. */
-function buildMessages(conv: Conversation): ChatRequest["messages"] {
+/** Build the provider-agnostic message array with a resolved system prompt. */
+function buildMessages(conv: Conversation, systemPrompt: string): ChatRequest["messages"] {
   const out: ChatRequest["messages"] = [];
-  if (conv.params.systemPrompt.trim()) {
-    out.push({ role: "system", content: conv.params.systemPrompt.trim() });
+  if (systemPrompt.trim()) {
+    out.push({ role: "system", content: systemPrompt.trim() });
   }
   for (const m of conv.messages) {
     if (m.role === "system" || m.error) continue;
@@ -51,6 +52,23 @@ export function useChat() {
       return;
     }
 
+    // Compose the effective system prompt: active persona first, then the
+    // conversation's own system prompt (extra per-chat instructions).
+    const persona = conv.personaId
+      ? state.personas.find((p) => p.id === conv.personaId)
+      : undefined;
+    const systemPrompt = [
+      persona ? composePersona(persona) : "",
+      conv.params.systemPrompt,
+    ]
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .join("\n\n");
+    const params =
+      persona && typeof persona.temperature === "number"
+        ? { ...conv.params, temperature: persona.temperature }
+        : conv.params;
+
     const reqBody: ChatRequest = {
       kind: provider.kind,
       apiKey: provider.apiKey,
@@ -61,8 +79,8 @@ export function useChat() {
       headers: provider.headers,
       useResponsesApi: provider.useResponsesApi,
       model: conv.model,
-      params: conv.params,
-      messages: buildMessages(conv),
+      params,
+      messages: buildMessages(conv, systemPrompt),
     };
 
     const assistant = newMessage("assistant", "", {

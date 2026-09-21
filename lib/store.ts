@@ -14,6 +14,7 @@ import {
 import { PresetDraft } from "./sillytavern";
 import { ThemeDraft } from "./sillytavern-theme";
 import { RegexDraft } from "./sillytavern-regex";
+import { PersonaDraft } from "./personas";
 import type { BackupFile, ImportSummary } from "./backup";
 
 export interface SavedPreset extends PresetDraft {
@@ -39,6 +40,11 @@ export interface SavedRegex extends RegexDraft {
   updatedAt: number;
 }
 
+export interface SavedPersona extends PersonaDraft {
+  id: string;
+  updatedAt: number;
+}
+
 interface AppState {
   providers: ProviderConfig[];
   conversations: Conversation[];
@@ -49,6 +55,7 @@ interface AppState {
   snippets: Snippet[];
   themes: SavedTheme[];
   regexScripts: SavedRegex[];
+  personas: SavedPersona[];
   uiTheme: "dark" | "light";
   hydrated: boolean;
   setHydrated: () => void;
@@ -94,6 +101,12 @@ interface AppState {
   removeRegex: (id: string) => void;
   addRegexScripts: (items: RegexDraft[]) => void;
 
+  // persona actions
+  savePersona: (draft: PersonaDraft, id?: string) => string;
+  removePersona: (id: string) => void;
+  addPersonas: (items: PersonaDraft[]) => void;
+  setConversationPersona: (convId: string, personaId: string | null) => void;
+
   // backup
   importBackup: (data: BackupFile, mode: "merge" | "replace") => ImportSummary;
 }
@@ -123,6 +136,7 @@ export const useStore = create<AppState>()(
       snippets: [],
       themes: [],
       regexScripts: [],
+      personas: [],
       uiTheme: "dark",
       hydrated: false,
       setHydrated: () => set({ hydrated: true }),
@@ -147,6 +161,7 @@ export const useStore = create<AppState>()(
         if (active) {
           conv.providerId = active.providerId;
           conv.model = active.model;
+          conv.personaId = active.personaId ?? null;
           conv.params = { ...active.params, systemPrompt: active.params.systemPrompt };
         } else {
           const first = get().providers.find((p) => p.enabled);
@@ -286,6 +301,7 @@ export const useStore = create<AppState>()(
           snippets: 0,
           themes: 0,
           regexScripts: 0,
+          personas: 0,
           conversations: 0,
           skipped: 0,
         };
@@ -297,12 +313,14 @@ export const useStore = create<AppState>()(
             snippets: data.snippets,
             themes: data.themes ?? [],
             regexScripts: data.regexScripts ?? [],
+            personas: data.personas ?? [],
           };
           summary.providers = data.providers.length;
           summary.presets = data.presets.length;
           summary.snippets = data.snippets.length;
           summary.themes = (data.themes ?? []).length;
           summary.regexScripts = (data.regexScripts ?? []).length;
+          summary.personas = (data.personas ?? []).length;
           if (data.conversations) {
             next.conversations = data.conversations;
             next.activeId = data.conversations[0]?.id ?? null;
@@ -374,6 +392,17 @@ export const useStore = create<AppState>()(
           return true;
         });
 
+        const existingPersona = new Set(state.personas.map((p) => p.name.toLowerCase()));
+        const newPersonas = (data.personas ?? []).filter((p) => {
+          if (existingPersona.has(p.name.toLowerCase())) {
+            summary.skipped++;
+            return false;
+          }
+          existingPersona.add(p.name.toLowerCase());
+          summary.personas++;
+          return true;
+        });
+
         // Regenerate ids on imported items to avoid collisions with existing.
         const reId = <T extends { id: string }>(arr: T[]): T[] =>
           arr.map((x) => ({ ...x, id: nanoid() }));
@@ -384,6 +413,7 @@ export const useStore = create<AppState>()(
           snippets: [...state.snippets, ...reId(newSnippets)],
           themes: [...state.themes, ...reId(newThemes)],
           regexScripts: [...state.regexScripts, ...reId(newRegex)],
+          personas: [...state.personas, ...reId(newPersonas)],
         };
 
         if (data.conversations?.length) {
@@ -455,6 +485,44 @@ export const useStore = create<AppState>()(
           ],
         }));
       },
+
+      savePersona: (draft, id) => {
+        const now = Date.now();
+        if (id) {
+          set((s) => ({
+            personas: s.personas.map((p) =>
+              p.id === id ? { ...draft, id, updatedAt: now } : p
+            ),
+          }));
+          return id;
+        }
+        const newId = nanoid();
+        set((s) => ({ personas: [{ ...draft, id: newId, updatedAt: now }, ...s.personas] }));
+        return newId;
+      },
+      removePersona: (id) =>
+        set((s) => ({
+          personas: s.personas.filter((p) => p.id !== id),
+          // Detach from any conversation using it.
+          conversations: s.conversations.map((c) =>
+            c.personaId === id ? { ...c, personaId: null } : c
+          ),
+        })),
+      addPersonas: (items) => {
+        const now = Date.now();
+        set((s) => ({
+          personas: [
+            ...items.map((it) => ({ ...it, id: nanoid(), updatedAt: now })),
+            ...s.personas,
+          ],
+        }));
+      },
+      setConversationPersona: (convId, personaId) =>
+        set((s) => ({
+          conversations: s.conversations.map((c) =>
+            c.id === convId ? { ...c, personaId } : c
+          ),
+        })),
     }),
     {
       name: "newfrontend-store",
@@ -467,6 +535,7 @@ export const useStore = create<AppState>()(
         snippets: s.snippets,
         themes: s.themes,
         regexScripts: s.regexScripts,
+        personas: s.personas,
         uiTheme: s.uiTheme,
       }),
       onRehydrateStorage: () => (state) => {

@@ -45,6 +45,11 @@ your keys directly when you'd rather skip the web platforms.
   fonts, custom CSS, with a live preview), and a **regex script** builder with a
   live tester (paste sample text, see the find/replace result), placement
   targeting, and a starter pack. All save to a local library and import/export.
+- **Personas (advanced prompts)** — build reusable AI personalities from guided
+  fields (identity, personality, voice, formatting, rules, examples) that
+  compose into a clean system prompt, with an optional temperature override.
+  Apply one to any chat from the header pill; save a library with a starter
+  pack, import/export, and backup coverage.
 - **Prompt & snippet library** — save reusable prompts and insert them with a
   `/` slash-command menu in the composer (↑↓/Enter), or set one as the chat's
   system prompt. Snippets with `{{placeholders}}` open a fill-in panel (Tab

@@ -10,6 +10,7 @@ import { SnippetLibrary } from "@/components/SnippetLibrary";
 import { BackupModal } from "@/components/BackupModal";
 import { ThemeBuilder } from "@/components/ThemeBuilder";
 import { RegexBuilder } from "@/components/RegexBuilder";
+import { PersonaBuilder } from "@/components/PersonaBuilder";
 import { Sparkles } from "lucide-react";
 import clsx from "clsx";
 
@@ -38,6 +39,7 @@ export default function Page() {
   const [backupOpen, setBackupOpen] = useState(false);
   const [themesOpen, setThemesOpen] = useState(false);
   const [regexOpen, setRegexOpen] = useState(false);
+  const [personasOpen, setPersonasOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Ensure there's always an active conversation once mounted.
@@ -67,6 +69,13 @@ export default function Page() {
     return () => document.removeEventListener("open-snippets", handler);
   }, []);
 
+  // Open the persona manager from the header pill.
+  useEffect(() => {
+    const handler = () => setPersonasOpen(true);
+    document.addEventListener("open-personas", handler);
+    return () => document.removeEventListener("open-personas", handler);
+  }, []);
+
   const active = conversations.find((c) => c.id === activeId) ?? null;
 
   if (!mounted) {
@@ -90,6 +99,7 @@ export default function Page() {
           onOpenSnippets={() => setSnippetsOpen(true)}
           onOpenThemes={() => setThemesOpen(true)}
           onOpenRegex={() => setRegexOpen(true)}
+          onOpenPersonas={() => setPersonasOpen(true)}
           onOpenBackup={() => setBackupOpen(true)}
         />
       </div>
@@ -123,6 +133,7 @@ export default function Page() {
             onOpenSnippets={() => setSnippetsOpen(true)}
             onOpenThemes={() => setThemesOpen(true)}
             onOpenRegex={() => setRegexOpen(true)}
+            onOpenPersonas={() => setPersonasOpen(true)}
             onOpenBackup={() => setBackupOpen(true)}
             onClose={() => setSidebarOpen(false)}
           />
@@ -145,6 +156,7 @@ export default function Page() {
       {snippetsOpen && <SnippetLibrary onClose={() => setSnippetsOpen(false)} />}
       {themesOpen && <ThemeBuilder onClose={() => setThemesOpen(false)} />}
       {regexOpen && <RegexBuilder onClose={() => setRegexOpen(false)} />}
+      {personasOpen && <PersonaBuilder onClose={() => setPersonasOpen(false)} />}
       {backupOpen && <BackupModal onClose={() => setBackupOpen(false)} />}
     </div>
   );
