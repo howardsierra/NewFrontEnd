@@ -1,9 +1,11 @@
 import { NextRequest } from "next/server";
 import type { ChatRequest } from "@/lib/types";
-import { buildUpstreamCall, parseSse } from "@/lib/server/upstream";
+import { buildUpstreamCall, parseSse, StreamDiagnostics } from "@/lib/server/upstream";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+// Long generations (and slow "thinking" models) can take minutes.
+export const maxDuration = 300;
 
 export async function POST(request: NextRequest) {
   let req: ChatRequest;
@@ -51,16 +53,36 @@ export async function POST(request: NextRequest) {
   const encoder = new TextEncoder();
   const flavor = call.flavor;
   const body = upstream.body;
+  const contentType = upstream.headers.get("content-type") || "";
 
   // NDJSON stream: one JSON event per line. See StreamEvent in lib/types.
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
       const emit = (obj: unknown) =>
         controller.enqueue(encoder.encode(JSON.stringify(obj) + "\n"));
+      const diag: StreamDiagnostics = { raw: "" };
+      let textChars = 0;
+      let reasoningChars = 0;
       try {
-        for await (const ev of parseSse(body, flavor)) {
-          if (ev.type === "text") emit({ t: "d", v: ev.text });
-          else emit({ t: "u", in: ev.input, out: ev.output });
+        for await (const ev of parseSse(body, flavor, diag)) {
+          if (ev.type === "text") {
+            textChars += ev.text.length;
+            emit({ t: "d", v: ev.text });
+          } else if (ev.type === "reasoning") {
+            reasoningChars += ev.text.length;
+            emit({ t: "r", v: ev.text });
+          } else {
+            emit({ t: "u", in: ev.input, out: ev.output });
+          }
+        }
+        if (textChars === 0) {
+          emit({ t: "e", v: explainEmpty(reasoningChars > 0, diag.raw) });
+          // Shows up in Vercel runtime logs so empty replies can be diagnosed.
+          console.warn(
+            `[chat] empty reply kind=${req.kind} model=${req.model} ` +
+              `type=${contentType} reasoning=${reasoningChars} ` +
+              `raw=${JSON.stringify(diag.raw.slice(0, 300))}`
+          );
         }
       } catch (e: any) {
         emit({ t: "e", v: e.message || "stream interrupted" });
@@ -77,6 +99,23 @@ export async function POST(request: NextRequest) {
       "X-Accel-Buffering": "no",
     },
   });
+}
+
+function explainEmpty(hadReasoning: boolean, raw: string): string {
+  if (hadReasoning) {
+    return "The model spent its whole token budget thinking and never wrote an answer. Raise Max tokens in Params and try again.";
+  }
+  const finish = /"(?:finish_reason|finishReason|stop_reason)"\s*:\s*"([^"]+)"/.exec(raw)?.[1];
+  if (finish && /safety|content_filter|recitation|blocked/i.test(finish)) {
+    return `The provider blocked this reply (${finish}). Try rephrasing, or pick a different model.`;
+  }
+  if (finish && /length|max_tokens/i.test(finish)) {
+    return "The reply was cut off before any text arrived. Raise Max tokens in Params.";
+  }
+  const snippet = raw.trim().slice(0, 160);
+  return snippet
+    ? `The model returned no text. The provider sent: ${snippet}`
+    : "The model returned an empty response. Check that the selected model supports chat.";
 }
 
 function json(data: unknown, status: number) {

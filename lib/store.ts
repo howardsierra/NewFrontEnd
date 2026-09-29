@@ -78,6 +78,7 @@ interface AppState {
   // message actions
   addMessage: (convId: string, msg: ChatMessage) => void;
   appendToMessage: (convId: string, msgId: string, chunk: string) => void;
+  appendReasoning: (convId: string, msgId: string, chunk: string) => void;
   patchMessage: (convId: string, msgId: string, patch: Partial<ChatMessage>) => void;
   removeMessage: (convId: string, msgId: string) => void;
 
@@ -225,6 +226,19 @@ export const useStore = create<AppState>()(
                   ...c,
                   messages: c.messages.map((m) =>
                     m.id === msgId ? { ...m, content: m.content + chunk } : m
+                  ),
+                }
+              : c
+          ),
+        })),
+      appendReasoning: (convId, msgId, chunk) =>
+        set((s) => ({
+          conversations: s.conversations.map((c) =>
+            c.id === convId
+              ? {
+                  ...c,
+                  messages: c.messages.map((m) =>
+                    m.id === msgId ? { ...m, reasoning: (m.reasoning ?? "") + chunk } : m
                   ),
                 }
               : c

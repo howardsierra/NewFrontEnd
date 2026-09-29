@@ -63,6 +63,8 @@ export interface ChatMessage {
   error?: string;
   /** Real token usage reported by the provider, when available. */
   usage?: TokenUsage;
+  /** Streamed reasoning ("thinking") from models that expose it. */
+  reasoning?: string;
   /** Estimated cost in USD for this message, when pricing is known. */
   cost?: number;
 }
@@ -75,6 +77,7 @@ export interface TokenUsage {
 /** Events streamed from /api/chat to the client (NDJSON, one per line). */
 export type StreamEvent =
   | { t: "d"; v: string } // text delta
+  | { t: "r"; v: string } // reasoning / "thinking" delta
   | { t: "u"; in: number; out: number } // usage
   | { t: "e"; v: string }; // error
 
