@@ -11,6 +11,11 @@ interface UpstreamCall {
   flavor: "openai" | "anthropic" | "gemini";
 }
 
+/** OpenAI reasoning models (o1/o3/o4, GPT-5) reject temperature/top_p. */
+function isOpenAiReasoningModel(model: string): boolean {
+  return /(^|\/)(o\d|gpt-5)/i.test(model);
+}
+
 function resolveBaseUrl(req: ChatRequest): string {
   if (req.kind === "custom") {
     const raw = (req.baseUrl || "").trim().replace(/\/+$/, "");
@@ -70,9 +75,10 @@ function buildOpenAiCall(req: ChatRequest): UpstreamCall {
         model: req.model,
         input,
         stream: true,
-        temperature: req.params.temperature,
         max_output_tokens: req.params.maxTokens,
-        top_p: req.params.topP,
+        ...(isOpenAiReasoningModel(req.model)
+          ? {}
+          : { temperature: req.params.temperature, top_p: req.params.topP }),
       }),
     };
   }
@@ -81,10 +87,20 @@ function buildOpenAiCall(req: ChatRequest): UpstreamCall {
     model: req.model,
     messages,
     stream: true,
-    temperature: req.params.temperature,
-    max_tokens: req.params.maxTokens,
-    top_p: req.params.topP,
   };
+  if (req.kind === "openai") {
+    // OpenAI deprecated max_tokens; o-series / GPT-5 reject it and any
+    // non-default temperature/top_p.
+    body.max_completion_tokens = req.params.maxTokens;
+    if (!isOpenAiReasoningModel(req.model)) {
+      body.temperature = req.params.temperature;
+      body.top_p = req.params.topP;
+    }
+  } else {
+    body.max_tokens = req.params.maxTokens;
+    body.temperature = req.params.temperature;
+    body.top_p = req.params.topP;
+  }
   // Ask for usage in the final stream chunk. Custom/local servers may not
   // support this option, so only request it for providers known to honor it.
   if (req.kind === "openai" || req.kind === "openrouter") {
@@ -188,121 +204,231 @@ function buildAnthropicCall(req: ChatRequest): UpstreamCall {
       messages,
       stream: true,
       max_tokens: req.params.maxTokens,
-      temperature: req.params.temperature,
-      top_p: req.params.topP,
+      // Newer Claude models reject temperature and top_p together; only send
+      // top_p when the user actually lowered it.
+      ...(req.params.topP < 1
+        ? { top_p: req.params.topP }
+        : { temperature: Math.min(req.params.temperature, 1) }),
     }),
   };
 }
 
 export type ParsedEvent =
   | { type: "text"; text: string }
+  | { type: "reasoning"; text: string }
   | { type: "usage"; input: number; output: number };
 
+/** Filled in by parseSse so callers can explain an empty reply. */
+export interface StreamDiagnostics {
+  /** First ~64KB of what the provider actually sent. */
+  raw: string;
+}
+
+type Flavor = "openai" | "anthropic" | "gemini";
+
+function contentToText(c: unknown): string {
+  if (typeof c === "string") return c;
+  if (Array.isArray(c)) {
+    return c.map((p: any) => (typeof p === "string" ? p : p?.text ?? "")).join("");
+  }
+  return "";
+}
+
+function errorMessage(json: any): string | null {
+  const e = json?.error;
+  if (!e) return null;
+  if (typeof e === "string") return e;
+  return e.message || e.msg || JSON.stringify(e).slice(0, 300);
+}
+
+/** OpenAI Chat Completions / Responses API (also OpenRouter + compatible servers). */
+function* fromOpenAi(json: any): Generator<ParsedEvent> {
+  const err = errorMessage(json);
+  if (err) throw new Error(err);
+
+  const choice = json.choices?.[0];
+  if (choice) {
+    if (choice.delta) {
+      const d = choice.delta;
+      // Reasoning models: OpenRouter uses `reasoning`, DeepSeek & others `reasoning_content`.
+      const r = d.reasoning ?? d.reasoning_content;
+      if (typeof r === "string" && r) yield { type: "reasoning", text: r };
+      const t = contentToText(d.content);
+      if (t) yield { type: "text", text: t };
+    } else if (choice.message) {
+      // Server ignored stream:true and sent a whole message.
+      const m = choice.message;
+      const r = m.reasoning ?? m.reasoning_content;
+      if (typeof r === "string" && r) yield { type: "reasoning", text: r };
+      const t = contentToText(m.content);
+      if (t) yield { type: "text", text: t };
+    } else if (typeof choice.text === "string" && choice.text) {
+      yield { type: "text", text: choice.text };
+    }
+  }
+
+  // Responses API events
+  if (typeof json.type === "string") {
+    if (json.type === "response.output_text.delta" && typeof json.delta === "string") {
+      yield { type: "text", text: json.delta };
+    } else if (
+      (json.type === "response.reasoning_summary_text.delta" ||
+        json.type === "response.reasoning_text.delta") &&
+      typeof json.delta === "string"
+    ) {
+      yield { type: "reasoning", text: json.delta };
+    } else if (json.type === "response.completed" && json.response?.usage) {
+      yield {
+        type: "usage",
+        input: json.response.usage.input_tokens ?? 0,
+        output: json.response.usage.output_tokens ?? 0,
+      };
+    } else if (json.type === "response.failed" || json.type === "error") {
+      throw new Error(
+        json.response?.error?.message || json.message || "The provider reported a failure."
+      );
+    }
+  } else if (typeof json.output_text === "string" && json.output_text) {
+    // Non-streamed Responses API body.
+    yield { type: "text", text: json.output_text };
+  }
+
+  // Chat Completions usage (final chunk, or a non-streamed body)
+  if (json.usage && typeof json.usage.prompt_tokens === "number") {
+    yield {
+      type: "usage",
+      input: json.usage.prompt_tokens ?? 0,
+      output: json.usage.completion_tokens ?? 0,
+    };
+  }
+}
+
+function* fromAnthropic(json: any, st: { input: number; output: number }): Generator<ParsedEvent> {
+  if (json.type === "error" || (json.error && !json.type)) {
+    throw new Error(errorMessage(json) || "Anthropic stream error");
+  }
+  if (json.type === "message_start" && json.message?.usage) {
+    st.input = json.message.usage.input_tokens ?? 0;
+    st.output = json.message.usage.output_tokens ?? 0;
+  }
+  if (json.type === "content_block_delta" && json.delta) {
+    if (json.delta.type === "text_delta" && typeof json.delta.text === "string") {
+      yield { type: "text", text: json.delta.text };
+    } else if (json.delta.type === "thinking_delta" && typeof json.delta.thinking === "string") {
+      yield { type: "reasoning", text: json.delta.thinking };
+    }
+  }
+  if (json.type === "message_delta" && json.usage) {
+    st.output = json.usage.output_tokens ?? st.output;
+    yield { type: "usage", input: st.input, output: st.output };
+  }
+  // Non-streamed Messages body
+  if (json.type === "message" && Array.isArray(json.content)) {
+    for (const b of json.content) {
+      if (b.type === "text" && b.text) yield { type: "text", text: b.text };
+      if (b.type === "thinking" && b.thinking) yield { type: "reasoning", text: b.thinking };
+    }
+    if (json.usage) {
+      yield { type: "usage", input: json.usage.input_tokens ?? 0, output: json.usage.output_tokens ?? 0 };
+    }
+  }
+}
+
+function* fromGemini(json: any): Generator<ParsedEvent> {
+  // Without alt=sse Gemini returns a JSON array of chunks.
+  if (Array.isArray(json)) {
+    for (const item of json) yield* fromGemini(item);
+    return;
+  }
+  const err = errorMessage(json);
+  if (err) throw new Error(err);
+  const block = json.promptFeedback?.blockReason;
+  if (block) throw new Error(`Gemini blocked this prompt (${block}).`);
+
+  const parts = json.candidates?.[0]?.content?.parts;
+  if (Array.isArray(parts)) {
+    for (const p of parts) {
+      if (typeof p.text !== "string" || !p.text) continue;
+      yield p.thought ? { type: "reasoning", text: p.text } : { type: "text", text: p.text };
+    }
+  }
+  if (json.usageMetadata) {
+    yield {
+      type: "usage",
+      input: json.usageMetadata.promptTokenCount ?? 0,
+      output: json.usageMetadata.candidatesTokenCount ?? 0,
+    };
+  }
+}
+
 /**
- * Parse an upstream SSE stream and yield typed events (text deltas + usage).
- * Works for both OpenAI-style and Anthropic-style event streams.
+ * Parse a provider's streaming response into typed events.
+ *
+ * Line-based and tolerant: handles CRLF line endings (Gemini), a final event
+ * with no trailing blank line, errors delivered inside a 200 stream, reasoning
+ * deltas, and servers that ignore `stream: true` and return one JSON body.
  */
 export async function* parseSse(
   stream: ReadableStream<Uint8Array>,
-  flavor: "openai" | "anthropic" | "gemini"
+  flavor: Flavor,
+  diag?: StreamDiagnostics
 ): AsyncGenerator<ParsedEvent> {
   const reader = stream.getReader();
   const decoder = new TextDecoder();
+  const anthropicState = { input: 0, output: 0 };
   let buffer = "";
+  let raw = "";
+  let sawData = false;
 
-  // Anthropic reports input once (message_start) and output cumulatively.
-  let anthropicInput = 0;
-  let anthropicOutput = 0;
+  const extract = (json: any): Generator<ParsedEvent> =>
+    flavor === "anthropic"
+      ? fromAnthropic(json, anthropicState)
+      : flavor === "gemini"
+        ? fromGemini(json)
+        : fromOpenAi(json);
+
+  function* processLine(line: string): Generator<ParsedEvent> {
+    if (line.endsWith("\r")) line = line.slice(0, -1);
+    if (!line.startsWith("data:")) return; // event:, id:, ": comments", blanks
+    sawData = true;
+    const data = line.slice(5).trim();
+    if (!data || data === "[DONE]") return;
+    let json: any;
+    try {
+      json = JSON.parse(data);
+    } catch {
+      return;
+    }
+    yield* extract(json);
+  }
 
   while (true) {
     const { done, value } = await reader.read();
     if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-
-    // SSE frames are separated by a blank line.
-    const frames = buffer.split("\n\n");
-    buffer = frames.pop() ?? "";
-
-    for (const frame of frames) {
-      for (const line of frame.split("\n")) {
-        const trimmed = line.trim();
-        if (!trimmed.startsWith("data:")) continue;
-        const data = trimmed.slice(5).trim();
-        if (!data || data === "[DONE]") continue;
-
-        let json: any;
-        try {
-          json = JSON.parse(data);
-        } catch {
-          continue;
-        }
-
-        if (flavor === "openai") {
-          // Chat Completions delta
-          const delta = json.choices?.[0]?.delta?.content;
-          if (typeof delta === "string" && delta) {
-            yield { type: "text", text: delta };
-          }
-          // Responses API events
-          if (json.type === "response.output_text.delta" && typeof json.delta === "string") {
-            yield { type: "text", text: json.delta };
-          }
-          if (json.type === "response.completed" && json.response?.usage) {
-            yield {
-              type: "usage",
-              input: json.response.usage.input_tokens ?? 0,
-              output: json.response.usage.output_tokens ?? 0,
-            };
-          }
-          // Chat Completions final usage chunk (stream_options.include_usage)
-          if (json.usage && json.object !== "response") {
-            yield {
-              type: "usage",
-              input: json.usage.prompt_tokens ?? 0,
-              output: json.usage.completion_tokens ?? 0,
-            };
-          }
-        } else if (flavor === "gemini") {
-          const parts = json.candidates?.[0]?.content?.parts;
-          if (Array.isArray(parts)) {
-            for (const p of parts) {
-              if (typeof p.text === "string" && p.text) {
-                yield { type: "text", text: p.text };
-              }
-            }
-          }
-          if (json.usageMetadata) {
-            yield {
-              type: "usage",
-              input: json.usageMetadata.promptTokenCount ?? 0,
-              output: json.usageMetadata.candidatesTokenCount ?? 0,
-            };
-          }
-          if (json.error) {
-            throw new Error(json.error?.message || "Gemini stream error");
-          }
-        } else {
-          // Anthropic event stream.
-          if (json.type === "message_start" && json.message?.usage) {
-            anthropicInput = json.message.usage.input_tokens ?? 0;
-            anthropicOutput = json.message.usage.output_tokens ?? 0;
-          }
-          if (
-            json.type === "content_block_delta" &&
-            json.delta?.type === "text_delta" &&
-            typeof json.delta.text === "string"
-          ) {
-            yield { type: "text", text: json.delta.text };
-          }
-          if (json.type === "message_delta" && json.usage) {
-            anthropicOutput = json.usage.output_tokens ?? anthropicOutput;
-            yield { type: "usage", input: anthropicInput, output: anthropicOutput };
-          }
-          if (json.type === "error") {
-            throw new Error(json.error?.message || "Anthropic stream error");
-          }
-        }
-      }
+    const chunk = decoder.decode(value, { stream: true });
+    if (raw.length < 65536) raw += chunk;
+    buffer += chunk;
+    let nl: number;
+    while ((nl = buffer.indexOf("\n")) >= 0) {
+      const line = buffer.slice(0, nl);
+      buffer = buffer.slice(nl + 1);
+      yield* processLine(line);
     }
+  }
+  buffer += decoder.decode();
+  if (buffer) yield* processLine(buffer);
+  if (diag) diag.raw = raw;
+
+  // Not an event stream at all — the provider sent one plain JSON body.
+  if (!sawData) {
+    const body = raw.trim();
+    if (!body) return;
+    let json: any;
+    try {
+      json = JSON.parse(body);
+    } catch {
+      throw new Error(`Unrecognized response from the provider: ${body.slice(0, 200)}`);
+    }
+    yield* extract(json);
   }
 }

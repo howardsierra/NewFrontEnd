@@ -131,6 +131,8 @@ export function useChat() {
         }
         if (ev.t === "d") {
           useStore.getState().appendToMessage(convId, assistant.id, ev.v);
+        } else if (ev.t === "r") {
+          useStore.getState().appendReasoning(convId, assistant.id, ev.v);
         } else if (ev.t === "u") {
           const usage = { input: ev.in, output: ev.out };
           const cachedModels = useStore.getState().modelCache[provider.id];
@@ -158,10 +160,15 @@ export function useChat() {
         .getState()
         .conversations.find((c) => c.id === convId)
         ?.messages.find((m) => m.id === assistant.id);
+      const gotText = !!current?.content;
       useStore.getState().patchMessage(convId, assistant.id, {
         streaming: false,
-        // Only surface a stream error if we got no content at all.
-        error: streamError && !current?.content ? streamError : current?.error,
+        // Never leave a silent, empty bubble: explain why nothing came back.
+        error: gotText
+          ? current?.error
+          : streamError ||
+            current?.error ||
+            "No reply came back from the model. Check the model name, or try another model.",
       });
     } catch (e: any) {
       const aborted = e?.name === "AbortError";

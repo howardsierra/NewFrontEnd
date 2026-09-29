@@ -15,6 +15,8 @@ import {
   AlertTriangle,
   FileText,
   ImageIcon,
+  Brain,
+  ChevronDown,
 } from "lucide-react";
 import clsx from "clsx";
 
@@ -113,6 +115,13 @@ export function MessageItem({
 
         {attachments && <div className="mb-2">{attachments}</div>}
 
+        {message.reasoning && (
+          <Thinking
+            text={message.reasoning}
+            live={!!message.streaming && !message.content}
+          />
+        )}
+
         {message.error ? (
           <div className="flex items-start gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
             <AlertTriangle size={16} className="mt-0.5 shrink-0" />
@@ -123,7 +132,7 @@ export function MessageItem({
             <Markdown content={message.content} />
             {message.streaming && <span className="stream-caret" aria-hidden />}
           </>
-        ) : message.streaming ? (
+        ) : message.streaming && !message.reasoning ? (
           <div className="thinking-dots flex items-center gap-1 py-2">
             <span /> <span /> <span />
           </div>
@@ -147,6 +156,36 @@ export function MessageItem({
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+/** Collapsible reasoning ("thinking") from models that stream it. */
+function Thinking({ text, live }: { text: string; live: boolean }) {
+  const [open, setOpen] = useState<boolean | null>(null);
+  // Open while the model is still thinking; collapse once the answer starts,
+  // unless the user has toggled it themselves.
+  const isOpen = open ?? live;
+  return (
+    <div className="mb-3 rounded-xl border border-line/70 bg-overlay/[0.025]">
+      <button
+        type="button"
+        onClick={() => setOpen(!isOpen)}
+        className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-ink-muted hover:text-ink"
+        aria-expanded={isOpen}
+      >
+        <Brain size={14} className={clsx("text-accent-soft", live && "animate-pulse")} />
+        <span className="font-medium">{live ? "Thinking…" : "Thought process"}</span>
+        <ChevronDown
+          size={14}
+          className={clsx("ml-auto transition-transform", isOpen && "rotate-180")}
+        />
+      </button>
+      {isOpen && (
+        <div className="max-h-72 overflow-y-auto border-t border-line/60 px-3 py-2 text-[13px] leading-relaxed text-ink-muted">
+          <div className="whitespace-pre-wrap break-words">{text}</div>
+        </div>
+      )}
     </div>
   );
 }
