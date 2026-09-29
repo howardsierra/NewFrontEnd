@@ -16,6 +16,7 @@ import { ThemeDraft } from "./sillytavern-theme";
 import { RegexDraft } from "./sillytavern-regex";
 import { PersonaDraft } from "./personas";
 import type { BackupFile, ImportSummary } from "./backup";
+import { safeLocalStorage } from "./safeStorage";
 
 export interface SavedPreset extends PresetDraft {
   id: string;
@@ -540,7 +541,7 @@ export const useStore = create<AppState>()(
     }),
     {
       name: "newfrontend-store",
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(() => safeLocalStorage),
       partialize: (s) => ({
         providers: s.providers,
         conversations: s.conversations,

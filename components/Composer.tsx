@@ -39,12 +39,15 @@ export function Composer({
   onSend,
   onStop,
   onGenerateImage,
+  imageWarning,
 }: {
   busy: boolean;
   disabled: boolean;
   onSend: (text: string, attachments: Attachment[]) => void;
   onStop: () => void;
   onGenerateImage: (prompt: string, size: string) => void;
+  /** Shown when an image is attached but the selected model can't see images. */
+  imageWarning?: string;
 }) {
   const [text, setText] = useState("");
   const [attachments, setAttachments] = useState<Attachment[]>([]);
@@ -233,6 +236,13 @@ export function Composer({
           </div>
         )}
 
+        {imageWarning && attachments.some((a) => a.kind === "image") && (
+          <div className="mx-1 mb-1 flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-xs text-amber-500">
+            <ImageIcon size={14} className="mt-0.5 shrink-0" />
+            <span>{imageWarning}</span>
+          </div>
+        )}
+
         {attachments.length > 0 && (
           <div className="flex flex-wrap gap-2 p-2">
             {attachments.map((a) => (
@@ -330,6 +340,14 @@ export function Composer({
           <textarea
             ref={textarea}
             value={text}
+            onPaste={(e) => {
+              // Pasted screenshots / copied images arrive as clipboard files.
+              const files = Array.from(e.clipboardData?.files ?? []);
+              if (files.length === 0) return;
+              handleFiles(files);
+              // Keep normal text paste working when the clipboard has both.
+              if (!e.clipboardData.getData("text/plain")) e.preventDefault();
+            }}
             onChange={(e) => {
               setText(e.target.value);
               updateSlash(e.target.value, e.target.selectionStart ?? e.target.value.length);

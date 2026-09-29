@@ -19,8 +19,93 @@ function ext(name: string): string {
   return parts.length > 1 ? parts.pop()! : "";
 }
 
+const IMAGE_EXTENSIONS = new Set([
+  "png", "jpg", "jpeg", "gif", "webp", "bmp", "heic", "heif", "avif", "tif", "tiff",
+]);
+
 function isImage(file: File): boolean {
-  return file.type.startsWith("image/");
+  // Some browsers report HEIC/HEIF with an empty MIME type, so check the extension too.
+  return file.type.startsWith("image/") || IMAGE_EXTENSIONS.has(ext(file.name));
+}
+
+/** Longest edge sent to models (Anthropic's recommended max; fine for OpenAI/Gemini). */
+const MAX_IMAGE_EDGE = 1568;
+/** Formats every provider accepts as-is. */
+const SAFE_IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "image/gif"]);
+
+async function decodeImage(file: File): Promise<ImageBitmap | HTMLImageElement> {
+  if (typeof createImageBitmap === "function") {
+    try {
+      return await createImageBitmap(file);
+    } catch {
+      /* fall through to <img> decoding */
+    }
+  }
+  const url = URL.createObjectURL(file);
+  try {
+    return await new Promise<HTMLImageElement>((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error("decode"));
+      img.src = url;
+    });
+  } finally {
+    // Safe: the <img> has already decoded (or failed) by now.
+    setTimeout(() => URL.revokeObjectURL(url), 0);
+  }
+}
+
+function hasTransparency(ctx: CanvasRenderingContext2D, w: number, h: number): boolean {
+  const data = ctx.getImageData(0, 0, w, h).data;
+  for (let i = 3; i < data.length; i += 16) if (data[i] < 255) return true;
+  return false;
+}
+
+/**
+ * Downscale and re-encode an image so it is small (well under Vercel's 4.5 MB
+ * request limit and browser storage quotas) and in a format every provider
+ * accepts. Small images in a safe format are kept as-is so screenshots of text
+ * stay crisp.
+ */
+async function prepareImage(file: File): Promise<{ dataUrl: string; mime: string }> {
+  let img: ImageBitmap | HTMLImageElement;
+  try {
+    img = await decodeImage(file);
+  } catch {
+    const heic = /hei[cf]$/i.test(ext(file.name)) || /hei[cf]/i.test(file.type);
+    throw new Error(
+      heic
+        ? `${file.name} is an iPhone HEIC photo this browser can't read. Share it as JPEG (or use Safari) and try again.`
+        : `${file.name} couldn't be read as an image.`
+    );
+  }
+  const width = "naturalWidth" in img ? img.naturalWidth : img.width;
+  const height = "naturalHeight" in img ? img.naturalHeight : img.height;
+
+  const safeType = SAFE_IMAGE_TYPES.has(file.type);
+  if (safeType && file.size <= 1_000_000 && Math.max(width, height) <= MAX_IMAGE_EDGE) {
+    return { dataUrl: await readAsDataUrl(file), mime: file.type };
+  }
+
+  const scale = Math.min(1, MAX_IMAGE_EDGE / Math.max(width, height));
+  const w = Math.max(1, Math.round(width * scale));
+  const h = Math.max(1, Math.round(height * scale));
+  const canvas = document.createElement("canvas");
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return { dataUrl: await readAsDataUrl(file), mime: file.type || "image/png" };
+  ctx.drawImage(img as CanvasImageSource, 0, 0, w, h);
+  if ("close" in img && typeof img.close === "function") img.close();
+
+  // Keep PNG for transparency or crisp screenshots, unless it ends up too big.
+  if (file.type === "image/png" || hasTransparency(ctx, w, h)) {
+    const png = canvas.toDataURL("image/png");
+    if (png.length < 1_600_000 || hasTransparency(ctx, w, h)) {
+      return { dataUrl: png, mime: "image/png" };
+    }
+  }
+  return { dataUrl: canvas.toDataURL("image/jpeg", 0.88), mime: "image/jpeg" };
 }
 
 function isPdf(file: File): boolean {
@@ -79,8 +164,14 @@ export async function parseFile(file: File): Promise<Attachment> {
     if (file.size > MAX_IMAGE_BYTES) {
       throw new Error(`${file.name} is too large (max 20MB for images).`);
     }
-    const dataUrl = await readAsDataUrl(file);
-    return { ...base, kind: "image", dataUrl };
+    const { dataUrl, mime } = await prepareImage(file);
+    return {
+      ...base,
+      mime,
+      size: Math.round((dataUrl.length - dataUrl.indexOf(",") - 1) * 0.75),
+      kind: "image",
+      dataUrl,
+    };
   }
 
   if (isPdf(file)) {

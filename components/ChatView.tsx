@@ -7,6 +7,7 @@ import { Composer } from "./Composer";
 import { ModelBar } from "./ModelBar";
 import { useChat } from "@/lib/useChat";
 import { useStore } from "@/lib/store";
+import { visionSupport } from "@/lib/vision";
 import clsx from "clsx";
 import { FileText, Code2, Wand2, Lightbulb, ChevronRight, ArrowDown } from "lucide-react";
 
@@ -64,6 +65,13 @@ export function ChatView({ conv }: { conv: Conversation }) {
     provider.kind === "custom" ? !!provider.baseUrl : !!provider.apiKey
   );
   const ready = providerReady && !!conv.model;
+
+  const modelCache = useStore((s) => s.modelCache);
+  const imageWarning =
+    provider && conv.model &&
+    visionSupport(provider.kind, conv.model, modelCache[provider.id]) === "no"
+      ? `${conv.model} can't see images, so it will ignore this one. Pick a vision model (GPT-4o, Claude, Gemini…) in the top bar.`
+      : undefined;
 
   const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
     const el = scrollRef.current;
@@ -167,7 +175,14 @@ export function ChatView({ conv }: { conv: Conversation }) {
         )}
       </div>
 
-      <Composer busy={busy} disabled={!ready} onSend={send} onStop={stop} onGenerateImage={generateImage} />
+      <Composer
+        busy={busy}
+        disabled={!ready}
+        onSend={send}
+        onStop={stop}
+        onGenerateImage={generateImage}
+        imageWarning={imageWarning}
+      />
     </div>
   );
 }

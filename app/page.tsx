@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useStore } from "@/lib/store";
+import { STORAGE_EVENT, StorageNotice } from "@/lib/safeStorage";
 import { Sidebar } from "@/components/Sidebar";
 import { ChatView } from "@/components/ChatView";
 import { SettingsModal } from "@/components/SettingsModal";
@@ -74,6 +75,22 @@ export default function Page() {
     const handler = () => setPersonasOpen(true);
     document.addEventListener("open-personas", handler);
     return () => document.removeEventListener("open-personas", handler);
+  }, []);
+
+  // Surface browser-storage problems instead of failing silently.
+  const [storageNotice, setStorageNotice] = useState<StorageNotice | null>(null);
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const handler = (e: Event) => {
+      setStorageNotice((e as CustomEvent<StorageNotice>).detail);
+      clearTimeout(timer);
+      timer = setTimeout(() => setStorageNotice(null), 9000);
+    };
+    window.addEventListener(STORAGE_EVENT, handler);
+    return () => {
+      window.removeEventListener(STORAGE_EVENT, handler);
+      clearTimeout(timer);
+    };
   }, []);
 
   const active = conversations.find((c) => c.id === activeId) ?? null;
@@ -151,6 +168,25 @@ export default function Page() {
         )}
       </main>
 
+      {storageNotice && (
+        <div
+          role="status"
+          className="glass fixed left-1/2 top-3 z-[60] flex w-[min(92vw,34rem)] -translate-x-1/2 animate-scale-in items-start gap-3 rounded-xl px-4 py-3 text-sm text-ink shadow-2xl"
+        >
+          <span className="flex-1">
+            {storageNotice === "pruned"
+              ? "Browser storage was full, so older images were removed from your saved chat history. Your keys and settings are saved."
+              : "Couldn't save to browser storage. Export a copy from Backup & restore so nothing is lost."}
+          </span>
+          <button
+            className="text-ink-faint hover:text-ink"
+            onClick={() => setStorageNotice(null)}
+            aria-label="Dismiss"
+          >
+            ✕
+          </button>
+        </div>
+      )}
       {settingsOpen && <SettingsModal onClose={() => setSettingsOpen(false)} />}
       {presetsOpen && <PresetBuilder onClose={() => setPresetsOpen(false)} />}
       {snippetsOpen && <SnippetLibrary onClose={() => setSnippetsOpen(false)} />}

@@ -83,11 +83,15 @@ function normalizeModels(data: any): ModelInfo[] {
           pricing = { input: inPer, output: outPer };
         }
       }
+      // OpenRouter reports input modalities; use them to know which models see images.
+      const modalities: unknown = m.architecture?.input_modalities;
+      const vision = Array.isArray(modalities) ? modalities.includes("image") : undefined;
       return {
         id,
         label: m.name && m.name !== id ? m.name : undefined,
         contextLength: m.context_length ?? m.context_window ?? m.top_provider?.context_length,
         pricing,
+        vision,
       };
     })
     .filter((m): m is ModelInfo => m !== null);
