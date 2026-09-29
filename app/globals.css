@@ -328,11 +328,48 @@ body::after {
   .aurora-blob,
   .stream-caret,
   .animate-glow-pulse,
+  .animate-bubble-in,
+  .animate-send-ripple,
   .thinking-dots span {
     animation: none !important;
   }
   .stream-caret {
     opacity: 0.8;
+  }
+}
+
+/* Floating message toolbar: always visible on touch, reveal-on-hover with a mouse. */
+.msg-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 9999px;
+  border: 1px solid var(--hairline);
+  background: rgb(var(--c-bg-panel) / 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 6px 20px -12px rgba(0, 0, 0, 0.6);
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+@media (hover: hover) {
+  .msg-toolbar {
+    opacity: 0;
+    transform: translateY(-2px);
+  }
+  .group:hover .msg-toolbar,
+  .msg-toolbar:focus-within {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* iOS zooms into inputs under 16px on focus — keep them at 16px on phones. */
+@media (max-width: 640px) {
+  input,
+  textarea,
+  select {
+    font-size: 16px !important;
   }
 }
 @keyframes pulse-dot {

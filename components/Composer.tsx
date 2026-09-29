@@ -55,6 +55,8 @@ export function Composer({
   const [pendingFill, setPendingFill] = useState<PendingFill | null>(null);
   const [imageMode, setImageMode] = useState(false);
   const [imageSize, setImageSize] = useState("1024x1024");
+  // Bumped on each send to replay the send-button ripple.
+  const [launchKey, setLaunchKey] = useState(0);
   const fileInput = useRef<HTMLInputElement>(null);
   const textarea = useRef<HTMLTextAreaElement>(null);
 
@@ -154,12 +156,14 @@ export function Composer({
     if (imageMode) {
       if (!text.trim()) return;
       onGenerateImage(text.trim(), imageSize);
+      setLaunchKey((k) => k + 1);
       setText("");
       if (textarea.current) textarea.current.style.height = "auto";
       return;
     }
     if (!text.trim() && attachments.length === 0) return;
     onSend(text.trim(), attachments);
+    setLaunchKey((k) => k + 1);
     setText("");
     setAttachments([]);
     if (textarea.current) textarea.current.style.height = "auto";
@@ -173,7 +177,7 @@ export function Composer({
   };
 
   return (
-    <div className="px-3 pb-4 pt-1 sm:px-6">
+    <div className="px-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-1 sm:px-6 sm:pb-4">
       <div
         className={clsx(
           "glass relative mx-auto max-w-3xl rounded-[26px] p-2.5 shadow-[0_22px_60px_-26px_rgba(0,0,0,0.6)] ring-1 ring-overlay/[0.04] transition-all duration-200 focus-within:ring-accent/30 focus-within:shadow-glow",
@@ -283,7 +287,7 @@ export function Composer({
           </div>
         )}
 
-        <div className="flex items-end gap-2">
+        <div className="flex items-end gap-1 sm:gap-2">
           <button
             className="btn-ghost shrink-0 px-2"
             onClick={() => fileInput.current?.click()}
@@ -375,23 +379,32 @@ export function Composer({
             className="max-h-[260px] flex-1 resize-none bg-transparent py-2 text-[15px] text-ink outline-none placeholder:text-ink-faint"
           />
 
-          {busy ? (
-            <button className="btn-soft shrink-0" onClick={onStop} title="Stop">
-              <Square size={16} className="fill-current" />
-            </button>
-          ) : (
-            <button
-              className="btn-primary shrink-0 rounded-xl px-3 py-2.5"
-              onClick={submit}
-              disabled={disabled || parsing || (!text.trim() && attachments.length === 0)}
-              title="Send"
-            >
-              <ArrowUp size={18} />
-            </button>
-          )}
+          <button
+            className={clsx(
+              "relative shrink-0 rounded-xl px-3 py-2.5",
+              busy ? "btn-soft" : "btn-primary"
+            )}
+            onClick={busy ? onStop : submit}
+            disabled={!busy && (disabled || parsing || (!text.trim() && attachments.length === 0))}
+            title={busy ? "Stop" : "Send"}
+            aria-label={busy ? "Stop generating" : "Send"}
+          >
+            {launchKey > 0 && (
+              <span
+                key={launchKey}
+                aria-hidden
+                className="pointer-events-none absolute inset-0 animate-send-ripple rounded-xl border-2 border-accent-soft"
+              />
+            )}
+            {busy ? (
+              <Square key="stop" size={16} className="animate-scale-in fill-current" />
+            ) : (
+              <ArrowUp key="send" size={18} className="animate-scale-in" />
+            )}
+          </button>
         </div>
       </div>
-      <p className="mx-auto mt-2 max-w-3xl text-center text-[11px] text-ink-faint">
+      <p className="mx-auto mt-2 hidden max-w-3xl text-center text-[11px] text-ink-faint sm:block">
         Keys stay in your browser. Attach HTML, CSS, JS, JSON, PDFs, images, and code.
       </p>
     </div>

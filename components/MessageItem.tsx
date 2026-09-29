@@ -62,25 +62,22 @@ export function MessageItem({
   // ---- User turn: right-aligned bubble ----
   if (isUser) {
     return (
-      <div className="group flex animate-fade-in flex-col items-end gap-2">
+      <div className="group flex animate-bubble-in flex-col items-end gap-1.5">
         {attachments}
         {message.content && (
-          <div className="max-w-[85%] overflow-hidden whitespace-pre-wrap break-words rounded-2xl rounded-br-md bg-overlay/[0.06] px-4 py-2.5 text-[15px] leading-relaxed text-ink">
+          <div className="max-w-[88%] overflow-hidden whitespace-pre-wrap break-words rounded-2xl rounded-br-md bg-overlay/[0.06] px-4 py-2.5 text-[15px] leading-relaxed text-ink sm:max-w-[80%]">
             {message.content}
           </div>
         )}
-        <div className="flex items-center gap-1 pr-1 opacity-0 transition group-hover:opacity-100">
+        <div className="msg-toolbar">
           {message.content && (
-            <button className="btn-ghost px-2 py-1 text-xs" onClick={copy}>
-              {copied ? <Check size={13} className="text-green-400" /> : <Copy size={13} />}
-            </button>
+            <ToolbarButton label={copied ? "Copied" : "Copy"} onClick={copy}>
+              {copied ? <Check size={14} className="text-green-400" /> : <Copy size={14} />}
+            </ToolbarButton>
           )}
-          <button
-            className="btn-ghost px-2 py-1 text-xs hover:text-red-400"
-            onClick={() => removeMessage(convId, message.id)}
-          >
-            <Trash2 size={13} />
-          </button>
+          <ToolbarButton label="Delete" danger onClick={() => removeMessage(convId, message.id)}>
+            <Trash2 size={14} />
+          </ToolbarButton>
         </div>
       </div>
     );
@@ -133,27 +130,50 @@ export function MessageItem({
         ) : null}
 
         {!message.streaming && (message.content || message.error) && (
-          <div className="mt-2 flex items-center gap-1 opacity-0 transition group-hover:opacity-100">
+          <div className="msg-toolbar mt-2 w-fit">
             {message.content && (
-              <button className="btn-ghost px-2 py-1 text-xs" onClick={copy}>
-                {copied ? <Check size={13} className="text-green-400" /> : <Copy size={13} />}
-                {copied ? "Copied" : "Copy"}
-              </button>
+              <ToolbarButton label={copied ? "Copied" : "Copy"} onClick={copy}>
+                {copied ? <Check size={14} className="text-green-400" /> : <Copy size={14} />}
+              </ToolbarButton>
             )}
             {onRegenerate && (
-              <button className="btn-ghost px-2 py-1 text-xs" onClick={onRegenerate}>
-                <RotateCcw size={13} /> Regenerate
-              </button>
+              <ToolbarButton label="Regenerate" onClick={onRegenerate}>
+                <RotateCcw size={14} />
+              </ToolbarButton>
             )}
-            <button
-              className="btn-ghost px-2 py-1 text-xs hover:text-red-400"
-              onClick={() => removeMessage(convId, message.id)}
-            >
-              <Trash2 size={13} /> Delete
-            </button>
+            <ToolbarButton label="Delete" danger onClick={() => removeMessage(convId, message.id)}>
+              <Trash2 size={14} />
+            </ToolbarButton>
           </div>
         )}
       </div>
     </div>
+  );
+}
+
+function ToolbarButton({
+  label,
+  onClick,
+  danger,
+  children,
+}: {
+  label: string;
+  onClick: () => void;
+  danger?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      title={label}
+      aria-label={label}
+      onClick={onClick}
+      className={clsx(
+        "grid h-8 w-8 place-items-center rounded-full text-ink-faint transition hover:bg-overlay/[0.08] hover:text-ink active:scale-90",
+        danger && "hover:text-red-400"
+      )}
+    >
+      {children}
+    </button>
   );
 }
