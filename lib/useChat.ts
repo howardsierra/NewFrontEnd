@@ -9,12 +9,24 @@ import { resolvePrice, costFor } from "./pricing";
 import { composePersona } from "./personas";
 import { nanoid } from "nanoid";
 
+/** How many recent image-bearing messages keep their images in the request. */
+const MAX_IMAGE_MESSAGES = 4;
+/** Vercel rejects serverless request bodies over 4.5 MB. */
+const MAX_REQUEST_BYTES = 4_300_000;
+
 /** Build the provider-agnostic message array with a resolved system prompt. */
 function buildMessages(conv: Conversation, systemPrompt: string): ChatRequest["messages"] {
   const out: ChatRequest["messages"] = [];
   if (systemPrompt.trim()) {
     out.push({ role: "system", content: systemPrompt.trim() });
   }
+  // Every turn resends the whole history, so only the most recent images go
+  // along; older ones are noted in text to keep requests small.
+  const imageMsgIds = conv.messages
+    .filter((m) => m.attachments?.some((a) => a.kind === "image" && a.dataUrl))
+    .map((m) => m.id);
+  const keepImagesFor = new Set(imageMsgIds.slice(-MAX_IMAGE_MESSAGES));
+
   for (const m of conv.messages) {
     if (m.role === "system" || m.error) continue;
     if (m.role === "assistant" && !m.content) continue; // skip empty placeholders
@@ -23,7 +35,10 @@ function buildMessages(conv: Conversation, systemPrompt: string): ChatRequest["m
     if (m.attachments) {
       for (const a of m.attachments) {
         if (a.kind === "text") content += attachmentToPrompt(a);
-        else if (a.kind === "image" && a.dataUrl) images.push(a.dataUrl);
+        else if (a.kind === "image" && a.dataUrl) {
+          if (keepImagesFor.has(m.id)) images.push(a.dataUrl);
+          else content += `\n\n[An earlier image (${a.name}) was shared here.]`;
+        }
       }
     }
     out.push({ role: m.role, content, ...(images.length ? { images } : {}) });
@@ -83,6 +98,19 @@ export function useChat() {
       messages: buildMessages(conv, systemPrompt),
     };
 
+    const payload = JSON.stringify(reqBody);
+    if (payload.length > MAX_REQUEST_BYTES) {
+      state.addMessage(
+        convId,
+        newMessage("assistant", "", {
+          model: conv.model,
+          providerLabel: provider.label,
+          error: `This message is too large to send (${(payload.length / 1e6).toFixed(1)} MB; the limit is about 4.3 MB). Remove an attachment or start a new chat.`,
+        })
+      );
+      return;
+    }
+
     const assistant = newMessage("assistant", "", {
       streaming: true,
       model: conv.model,
@@ -98,7 +126,7 @@ export function useChat() {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(reqBody),
+        body: payload,
         signal: controller.signal,
       });
 

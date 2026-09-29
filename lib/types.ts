@@ -31,6 +31,8 @@ export interface ModelInfo {
   contextLength?: number;
   /** Price in USD per 1M tokens, when known (e.g. from OpenRouter). */
   pricing?: { input: number; output: number };
+  /** Whether the model accepts image input, when the provider reports it. */
+  vision?: boolean;
 }
 
 /** A piece of content attached to a user message. */
