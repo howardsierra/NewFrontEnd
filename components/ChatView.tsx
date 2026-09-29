@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { Conversation } from "@/lib/types";
 import { MessageItem } from "./MessageItem";
 import { Composer } from "./Composer";
@@ -8,7 +8,7 @@ import { ModelBar } from "./ModelBar";
 import { useChat } from "@/lib/useChat";
 import { useStore } from "@/lib/store";
 import clsx from "clsx";
-import { FileText, Code2, Wand2, Lightbulb, ChevronRight } from "lucide-react";
+import { FileText, Code2, Wand2, Lightbulb, ChevronRight, ArrowDown } from "lucide-react";
 
 const SUGGESTIONS = [
   {
@@ -55,7 +55,9 @@ export function ChatView({ conv }: { conv: Conversation }) {
   const { send, stop, regenerate, generateImage, busy } = useChat();
   const providers = useStore((s) => s.providers);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const bottomRef = useRef<HTMLDivElement>(null);
+  // Follow the stream only while the reader is at (or near) the bottom.
+  const stickRef = useRef(true);
+  const [atBottom, setAtBottom] = useState(true);
 
   const provider = providers.find((p) => p.id === conv.providerId);
   const providerReady = !!provider && (
@@ -63,12 +65,51 @@ export function ChatView({ conv }: { conv: Conversation }) {
   );
   const ready = providerReady && !!conv.model;
 
-  // Auto-scroll to bottom as content streams in.
+  const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
+    const el = scrollRef.current;
+    if (!el) return;
+    stickRef.current = true;
+    setAtBottom(true);
+    el.scrollTo({ top: el.scrollHeight, behavior });
+  }, []);
+
+  const lastTopRef = useRef(0);
+  const onScroll = () => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const top = el.scrollTop;
+    const near = el.scrollHeight - top - el.clientHeight < 96;
+    if (near) {
+      stickRef.current = true;
+      setAtBottom(true);
+    } else if (top < lastTopRef.current - 2) {
+      // Only an upward scroll means "I'm reading back". Programmatic scrolls
+      // toward the bottom (and content growing while streaming) never unstick.
+      stickRef.current = false;
+      setAtBottom(false);
+    }
+    lastTopRef.current = top;
+  };
+
+  // Jump to the latest message when switching conversations.
+  useEffect(() => {
+    scrollToBottom("auto");
+  }, [conv.id, scrollToBottom]);
+
+  // New messages (e.g. you just sent one) always bring you to the bottom.
+  useEffect(() => {
+    scrollToBottom("smooth");
+  }, [conv.messages.length, scrollToBottom]);
+
+  // While streaming, follow along only if you haven't scrolled up.
   const lastContent =
     conv.messages[conv.messages.length - 1]?.content.length ?? 0;
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [conv.messages.length, lastContent]);
+    const el = scrollRef.current;
+    if (el && stickRef.current) el.scrollTop = el.scrollHeight;
+  }, [lastContent]);
+
+  const hasMessages = conv.messages.length > 0;
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col">
@@ -79,28 +120,50 @@ export function ChatView({ conv }: { conv: Conversation }) {
         }
       />
 
-      <div ref={scrollRef} className="min-h-0 min-w-0 flex-1 overflow-y-auto">
-        {conv.messages.length === 0 ? (
-          <Welcome
-            onPick={(p) => send(p, [])}
-            ready={ready}
-          />
-        ) : (
-          <div className="mx-auto max-w-3xl space-y-8 px-4 py-8">
-            {conv.messages.map((m, i) => (
-              <MessageItem
-                key={m.id}
-                message={m}
-                convId={conv.id}
-                onRegenerate={
-                  i === conv.messages.length - 1 && m.role === "assistant" && !busy
-                    ? regenerate
-                    : undefined
-                }
-              />
-            ))}
-            <div ref={bottomRef} />
-          </div>
+      <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
+        <div
+          ref={scrollRef}
+          onScroll={onScroll}
+          className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain"
+        >
+          {!hasMessages ? (
+            <Welcome
+              onPick={(p) => send(p, [])}
+              ready={ready}
+            />
+          ) : (
+            <div className="mx-auto max-w-3xl space-y-6 px-3 py-6 sm:space-y-8 sm:px-4 sm:py-8">
+              {conv.messages.map((m, i) => (
+                <MessageItem
+                  key={m.id}
+                  message={m}
+                  convId={conv.id}
+                  onRegenerate={
+                    i === conv.messages.length - 1 && m.role === "assistant" && !busy
+                      ? regenerate
+                      : undefined
+                  }
+                />
+              ))}
+            </div>
+          )}
+        </div>
+
+        {hasMessages && !atBottom && (
+          <button
+            onClick={() => scrollToBottom("smooth")}
+            aria-label="Scroll to latest"
+            className="glass absolute bottom-3 left-1/2 z-10 flex -translate-x-1/2 animate-scale-in items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium text-ink shadow-[0_10px_30px_-12px_rgba(0,0,0,0.7)] transition hover:text-accent-soft active:scale-95"
+          >
+            {busy && (
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent opacity-60" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-accent" />
+              </span>
+            )}
+            <ArrowDown size={14} />
+            {busy ? "New reply" : "Latest"}
+          </button>
         )}
       </div>
 
@@ -117,7 +180,7 @@ function Welcome({
   ready: boolean;
 }) {
   return (
-    <div className="relative mx-auto flex max-w-2xl flex-col items-center px-4 py-16 text-center">
+    <div className="relative mx-auto flex max-w-2xl flex-col items-center px-4 py-10 text-center sm:py-16">
       <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-72 overflow-hidden">
         <span
           className="aurora-blob left-[18%] top-2 h-40 w-40"
@@ -140,7 +203,7 @@ function Welcome({
           }}
         />
       </div>
-      <h1 className="text-3xl font-semibold tracking-tight text-gradient">
+      <h1 className="text-2xl font-semibold tracking-tight text-gradient sm:text-3xl">
         What can I help you create?
       </h1>
       <p className="mt-2.5 text-sm text-ink-muted">

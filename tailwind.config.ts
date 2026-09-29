@@ -61,12 +61,22 @@ const config: Config = {
           "0%, 100%": { opacity: "0.5" },
           "50%": { opacity: "0.9" },
         },
+        "bubble-in": {
+          from: { opacity: "0", transform: "translate(6px, 10px) scale(0.96)" },
+          to: { opacity: "1", transform: "translate(0, 0) scale(1)" },
+        },
+        "send-ripple": {
+          "0%": { transform: "scale(0.85)", opacity: "0.7" },
+          "100%": { transform: "scale(1.9)", opacity: "0" },
+        },
       },
       animation: {
         "fade-in": "fade-in 0.28s cubic-bezier(0.22,1,0.36,1)",
         "scale-in": "scale-in 0.18s cubic-bezier(0.22,1,0.36,1)",
         shimmer: "shimmer 1.4s infinite",
         "glow-pulse": "glow-pulse 4s ease-in-out infinite",
+        "bubble-in": "bubble-in 0.32s cubic-bezier(0.22,1,0.36,1) both",
+        "send-ripple": "send-ripple 0.6s cubic-bezier(0.22,1,0.36,1) forwards",
       },
     },
   },

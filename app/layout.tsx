@@ -25,9 +25,15 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0b0d12",
+  themeColor: [
+    { media: "(prefers-color-scheme: dark)", color: "#0a0b10" },
+    { media: "(prefers-color-scheme: light)", color: "#f8f7f4" },
+  ],
   width: "device-width",
   initialScale: 1,
+  // Lets the layout extend under the notch / home indicator; the composer pads
+  // itself with env(safe-area-inset-bottom).
+  viewportFit: "cover",
 };
 
 export default function RootLayout({

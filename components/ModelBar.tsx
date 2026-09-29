@@ -37,7 +37,7 @@ export function ModelBar({
   );
 
   return (
-    <div className="flex items-center gap-2 border-b border-line/70 bg-bg-subtle/50 px-3 py-3 backdrop-blur-xl">
+    <div className="relative z-20 flex items-center gap-1.5 border-b border-line/70 bg-bg-subtle/50 px-2 py-2.5 backdrop-blur-xl sm:gap-2 sm:px-3 sm:py-3">
       <button
         className="btn-ghost px-2 lg:hidden"
         onClick={onToggleSidebar}
@@ -48,6 +48,7 @@ export function ModelBar({
 
       {/* Provider picker — Flux-style logo pill */}
       <Dropdown
+        compact
         label={provider?.label ?? "No connection"}
         accent={provider ? PROVIDER_META[provider.kind].accent : undefined}
         icon={
@@ -119,11 +120,12 @@ function PersonaPill({ conv }: { conv: Conversation }) {
 
   return (
     <Dropdown
+      compact
       label={active ? active.name : "Persona"}
       icon={<span className="text-[15px] leading-none">{active ? active.emoji : "🎭"}</span>}
     >
       {(close) => (
-        <div className="w-60 py-1">
+        <div className="w-full py-1 sm:w-60">
           <button
             className={clsx(
               "flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-bg-elevated",
@@ -293,7 +295,7 @@ function ModelPicker({
       wide
     >
       {(close) => (
-        <div className="flex max-h-[60vh] w-80 flex-col">
+        <div className="flex max-h-[60vh] w-full flex-col sm:w-80">
           <div className="flex items-center gap-2 border-b border-line p-2">
             <div className="relative flex-1">
               <Search
@@ -373,12 +375,13 @@ function ParamsButton({ conv }: { conv: Conversation }) {
 
   return (
     <Dropdown
+      compact
       label="Params"
       icon={<SlidersHorizontal size={14} />}
       align="right"
     >
       {() => (
-        <div className="w-80 space-y-4 p-4">
+        <div className="max-h-[70vh] w-full space-y-4 overflow-y-auto p-4 sm:w-80">
           <Slider
             label="Temperature"
             value={p.temperature}
@@ -474,6 +477,7 @@ function Dropdown({
   children,
   mono,
   wide,
+  compact,
   align = "left",
 }: {
   label: string;
@@ -482,6 +486,8 @@ function Dropdown({
   children: (close: () => void) => React.ReactNode;
   mono?: boolean;
   wide?: boolean;
+  /** Show only the icon on phones. */
+  compact?: boolean;
   align?: "left" | "right";
 }) {
   const [open, setOpen] = useState(false);
@@ -489,32 +495,50 @@ function Dropdown({
 
   useEffect(() => {
     if (!open) return;
-    const handler = (e: MouseEvent) => {
+    const handler = (e: MouseEvent | TouchEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
     };
     document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
+    document.addEventListener("touchstart", handler);
+    return () => {
+      document.removeEventListener("mousedown", handler);
+      document.removeEventListener("touchstart", handler);
+    };
   }, [open]);
 
   return (
-    <div className="relative" ref={ref}>
+    // On phones the panel anchors to the header row (full width); from sm up it
+    // anchors to its own button.
+    <div className={clsx("sm:relative", !compact && "min-w-0")} ref={ref}>
       <button
-        className="btn-soft max-w-[44vw] sm:max-w-xs"
+        className={clsx(
+          "btn-soft",
+          compact ? "px-2 sm:px-3" : "max-w-[46vw] sm:max-w-xs"
+        )}
         onClick={() => setOpen((v) => !v)}
         style={accent ? { borderColor: `${accent}55` } : undefined}
+        aria-label={label}
+        aria-expanded={open}
       >
         {icon}
-        <span className={clsx("truncate", mono && "font-mono text-[13px]")}>
+        <span
+          className={clsx(
+            "truncate",
+            mono && "font-mono text-[13px]",
+            compact && "hidden sm:inline"
+          )}
+        >
           {label}
         </span>
-        <ChevronDown size={14} className="shrink-0 opacity-60" />
+        <ChevronDown size={14} className={clsx("shrink-0 opacity-60", compact && "hidden sm:block")} />
       </button>
       {open && (
         <div
           className={clsx(
-            "absolute z-40 mt-1.5 min-w-[12rem] overflow-hidden rounded-xl border border-line bg-bg-panel shadow-2xl animate-fade-in",
-            wide && "min-w-[20rem]",
-            align === "right" ? "right-0" : "left-0"
+            "absolute inset-x-2 top-full z-40 mt-1.5 overflow-hidden rounded-xl border border-line bg-bg-panel shadow-2xl animate-scale-in",
+            "sm:inset-x-auto sm:top-auto sm:min-w-[12rem]",
+            wide && "sm:min-w-[20rem]",
+            align === "right" ? "sm:right-0" : "sm:left-0"
           )}
         >
           {children(() => setOpen(false))}

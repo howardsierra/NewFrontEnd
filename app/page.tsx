@@ -80,7 +80,7 @@ export default function Page() {
 
   if (!mounted) {
     return (
-      <div className="grid h-screen place-items-center">
+      <div className="grid h-dvh place-items-center">
         <div className="flex items-center gap-2 text-ink-muted">
           <Sparkles size={18} className="animate-pulse text-accent-soft" />
           Loading…
@@ -90,7 +90,7 @@ export default function Page() {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden">
+    <div className="flex h-dvh overflow-hidden">
       {/* Desktop sidebar */}
       <div className="hidden lg:block">
         <Sidebar
