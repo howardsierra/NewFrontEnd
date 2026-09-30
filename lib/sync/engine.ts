@@ -186,7 +186,11 @@ async function stampLocal(local: LocalSync, now: number): Promise<Snapshot> {
 
 // ---------- transport ----------
 
-class ConflictError extends Error {}
+class ConflictError extends Error {
+  constructor() {
+    super("Another device kept saving at the same moment. Sync will retry shortly.");
+  }
+}
 
 async function api(
   method: "GET" | "PUT" | "DELETE",
@@ -202,7 +206,7 @@ async function api(
       body: body ? new Blob([body]) : undefined,
       headers: {
         ...(body ? { "Content-Type": "application/octet-stream" } : {}),
-        ...(ifMatch ? { "If-Match": ifMatch } : {}),
+        ...(ifMatch ? { "X-Sync-Version": ifMatch } : {}),
       },
       cache: "no-store",
     }
@@ -223,7 +227,7 @@ async function getSealed<T>(key: CryptoKey, vault: string, path: string) {
   const res = await api("GET", vault, path);
   if (res.status === 404) return null;
   const data = new Uint8Array(await res.arrayBuffer());
-  return { value: await openJson<T>(key, path, data), etag: res.headers.get("etag") };
+  return { value: await openJson<T>(key, path, data), etag: res.headers.get("x-sync-version") };
 }
 
 async function putSealed(
