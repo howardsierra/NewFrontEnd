@@ -64,11 +64,27 @@ const STALE_STREAM_MS = 10 * 60 * 1000;
 
 export type SyncPhase = "off" | "idle" | "syncing" | "error";
 
+export interface VaultSummary {
+  chats: number;
+  providers: number;
+  personas: number;
+  snippets: number;
+  presets: number;
+  images: number;
+}
+
 interface SyncStatus {
   phase: SyncPhase;
   lastSync?: number;
   error?: string;
   vault?: string;
+  /** What the server holds after the last successful sync. */
+  remote?: VaultSummary;
+}
+
+/** Short, shareable form of the vault id so two devices can be compared. */
+export function vaultFingerprint(vault?: string) {
+  return vault ? `${vault.slice(0, 4)}-${vault.slice(4, 8)}`.toUpperCase() : "";
 }
 
 export const useSyncStatus = create<SyncStatus>(() => ({ phase: "off" }));
@@ -262,7 +278,11 @@ function emptyMeta(): RemoteMeta {
 
 // ---------- one sync pass ----------
 
-async function syncPass(local: LocalSync, key: CryptoKey): Promise<void> {
+async function syncPass(
+  local: LocalSync,
+  key: CryptoKey,
+  recover: boolean
+): Promise<VaultSummary> {
   const now = Date.now();
   const snap = await stampLocal(local, now);
   const { vault } = local;
@@ -323,6 +343,31 @@ async function syncPass(local: LocalSync, key: CryptoKey): Promise<void> {
     if (got) pulledConvs.push(got.value);
     else delete next.convs[id]; // index points at a missing chat; drop it
   });
+  // Recovery: chats stored on the server but missing from the index (for
+  // example, an index write that failed after the chats were uploaded).
+  if (recover) {
+    const res = await fetch(`/api/sync?vault=${vault}&list=1`, { cache: "no-store" });
+    if (res.ok) {
+      const { keys } = (await res.json()) as { keys: string[] };
+      const tomb = next.tomb.conversations;
+      const orphans = keys
+        .filter((k) => k.startsWith("conv/"))
+        .map((k) => k.slice(5))
+        .filter((id) => !next.convs[id] && tomb[id] === undefined && !snap.conversations.has(id));
+      await pool(orphans, 3, async (id) => {
+        const got = await getSealed<Conversation>(key, vault, `conv/${id}`);
+        if (!got?.value?.messages) return;
+        const stamp = { h: await hashOf("conversations", got.value), t: got.value.updatedAt || now };
+        next.convs[id] = stamp;
+        cm.items[id] = stamp;
+        pulledConvs.push(got.value);
+      });
+      for (const k of keys) {
+        if (k.startsWith("img/") && next.convs[k.split("/")[1]]) remoteImages.add(k.slice(4));
+      }
+    }
+  }
+
   await pool(cm.deleteRemote, 3, async (id) => {
     await api("DELETE", vault, `conv/${id}`);
   });
@@ -358,6 +403,14 @@ async function syncPass(local: LocalSync, key: CryptoKey): Promise<void> {
   applyToStore(local, snap, merges, pulledSettings, pulledConvs, deleted);
   local.images = next.images;
   local.lastSync = Date.now();
+  return {
+    chats: Object.keys(next.convs).length,
+    providers: Object.keys(next.items.providers).length,
+    personas: Object.keys(next.items.personas).length,
+    snippets: Object.keys(next.items.snippets).length,
+    presets: Object.keys(next.items.presets).length,
+    images: next.images.length,
+  };
 }
 
 /** Write what came down into the app store, skipping anything edited meanwhile. */
@@ -450,9 +503,15 @@ function keepLocalImages(incoming: Conversation, existing: Conversation): Conver
 
 let running: Promise<void> | null = null;
 let again = false;
+let recoverNext = false;
 
-/** Sync now. Concurrent calls coalesce into one follow-up pass. */
-export function syncNow(): Promise<void> {
+/**
+ * Sync now. Concurrent calls coalesce into one follow-up pass. `recover`
+ * also scans the server for chats missing from the index (used when sync is
+ * turned on and for "Sync now", not for the background loop).
+ */
+export function syncNow(opts: { recover?: boolean } = {}): Promise<void> {
+  if (opts.recover) recoverNext = true;
   if (running) {
     again = true;
     return running;
@@ -479,9 +538,12 @@ async function runOnce() {
   useSyncStatus.setState({ phase: "syncing", vault: local.vault });
   try {
     const key = await importKey(fromBase64(local.rawKey));
+    let remote: VaultSummary | undefined;
+    const recover = recoverNext;
+    recoverNext = false;
     for (let attempt = 0; ; attempt++) {
       try {
-        await syncPass(local, key);
+        remote = await syncPass(local, key, recover);
         break;
       } catch (e) {
         // Another device wrote meta between our read and write: go again.
@@ -492,7 +554,7 @@ async function runOnce() {
     // Sync may have been turned off while we were working.
     if (!loadLocal()) return;
     saveLocal(local);
-    useSyncStatus.setState({ phase: "idle", lastSync: local.lastSync, error: undefined });
+    useSyncStatus.setState({ phase: "idle", lastSync: local.lastSync, error: undefined, remote });
   } catch (e: any) {
     if (!loadLocal()) return;
     saveLocal(local); // keep tombstones/stamps recorded so far
@@ -523,8 +585,8 @@ export async function enableSync(keys: { rawKey: string; vaultId: string }) {
     tomb: emptyColls<TombMap>(() => ({})),
     images: [],
   });
-  useSyncStatus.setState({ phase: "idle", vault: keys.vaultId, error: undefined });
-  await syncNow();
+  useSyncStatus.setState({ phase: "idle", vault: keys.vaultId, error: undefined, remote: undefined });
+  await syncNow({ recover: true });
 }
 
 /** Stop syncing on this device. Local data stays; server data stays. */
@@ -532,7 +594,13 @@ export function disableSync() {
   try {
     localStorage.removeItem(LOCAL_KEY);
   } catch {}
-  useSyncStatus.setState({ phase: "off", lastSync: undefined, error: undefined, vault: undefined });
+  useSyncStatus.setState({
+    phase: "off",
+    lastSync: undefined,
+    error: undefined,
+    vault: undefined,
+    remote: undefined,
+  });
 }
 
 /** Delete everything in this vault from the server, then turn sync off here. */
