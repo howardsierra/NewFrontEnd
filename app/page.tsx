@@ -12,6 +12,9 @@ import { BackupModal } from "@/components/BackupModal";
 import { ThemeBuilder } from "@/components/ThemeBuilder";
 import { RegexBuilder } from "@/components/RegexBuilder";
 import { PersonaBuilder } from "@/components/PersonaBuilder";
+import { SyncModal } from "@/components/SyncModal";
+import { useAutoSync } from "@/lib/sync/useAutoSync";
+import { isSyncEnabled } from "@/lib/sync/engine";
 import { Sparkles } from "lucide-react";
 import clsx from "clsx";
 
@@ -41,7 +44,10 @@ export default function Page() {
   const [themesOpen, setThemesOpen] = useState(false);
   const [regexOpen, setRegexOpen] = useState(false);
   const [personasOpen, setPersonasOpen] = useState(false);
+  const [syncOpen, setSyncOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  useAutoSync();
 
   // Ensure there's always an active conversation once mounted.
   useEffect(() => {
@@ -118,6 +124,7 @@ export default function Page() {
           onOpenRegex={() => setRegexOpen(true)}
           onOpenPersonas={() => setPersonasOpen(true)}
           onOpenBackup={() => setBackupOpen(true)}
+          onOpenSync={() => setSyncOpen(true)}
         />
       </div>
 
@@ -152,6 +159,7 @@ export default function Page() {
             onOpenRegex={() => setRegexOpen(true)}
             onOpenPersonas={() => setPersonasOpen(true)}
             onOpenBackup={() => setBackupOpen(true)}
+            onOpenSync={() => setSyncOpen(true)}
             onClose={() => setSidebarOpen(false)}
           />
         </div>
@@ -175,7 +183,9 @@ export default function Page() {
         >
           <span className="flex-1">
             {storageNotice === "pruned"
-              ? "Browser storage was full, so older images were removed from your saved chat history. Your keys and settings are saved."
+              ? isSyncEnabled()
+                ? "Browser storage is full, so older images aren't kept on this device. They're safe in your synced vault and load again when you open the chat."
+                : "Browser storage was full, so older images were removed from your saved chat history. Your keys and settings are saved."
               : "Couldn't save to browser storage. Export a copy from Backup & restore so nothing is lost."}
           </span>
           <button
@@ -194,6 +204,7 @@ export default function Page() {
       {regexOpen && <RegexBuilder onClose={() => setRegexOpen(false)} />}
       {personasOpen && <PersonaBuilder onClose={() => setPersonasOpen(false)} />}
       {backupOpen && <BackupModal onClose={() => setBackupOpen(false)} />}
+      {syncOpen && <SyncModal onClose={() => setSyncOpen(false)} />}
     </div>
   );
 }

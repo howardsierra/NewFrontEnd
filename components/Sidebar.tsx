@@ -1,7 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useStore } from "@/lib/store";
+import { useSyncStatus } from "@/lib/sync/engine";
+import { timeAgo } from "./SyncModal";
 import {
   Plus,
   MessageSquare,
@@ -16,6 +18,9 @@ import {
   Palette,
   Regex,
   Drama,
+  Cloud,
+  CloudOff,
+  RefreshCw,
 } from "lucide-react";
 import clsx from "clsx";
 
@@ -27,6 +32,7 @@ export function Sidebar({
   onOpenRegex,
   onOpenPersonas,
   onOpenBackup,
+  onOpenSync,
   onClose,
 }: {
   onOpenSettings: () => void;
@@ -36,6 +42,7 @@ export function Sidebar({
   onOpenRegex: () => void;
   onOpenPersonas: () => void;
   onOpenBackup: () => void;
+  onOpenSync: () => void;
   onClose?: () => void;
 }) {
   const conversations = useStore((s) => s.conversations);
@@ -251,16 +258,62 @@ export function Sidebar({
           </button>
         </div>
 
-        <div className="mt-2 flex items-center gap-2.5 border-t border-line pt-3">
-          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-accent-grad text-[11px] font-bold text-white ring-1 ring-white/10">
-            ME
-          </span>
-          <div className="min-w-0 leading-tight">
-            <div className="truncate text-xs font-medium text-ink">Local workspace</div>
-            <div className="truncate text-[10px] text-ink-faint">Keys stay in this browser</div>
-          </div>
-        </div>
+        <SyncCard
+          onClick={() => {
+            onOpenSync();
+            onClose?.();
+          }}
+        />
       </div>
     </div>
+  );
+}
+
+function SyncCard({ onClick }: { onClick: () => void }) {
+  const status = useSyncStatus();
+  const [, tick] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => tick((n) => n + 1), 30_000);
+    return () => clearInterval(t);
+  }, []);
+
+  const off = status.phase === "off";
+  const Icon = status.phase === "error" ? CloudOff : status.phase === "syncing" ? RefreshCw : Cloud;
+  const subtitle = off
+    ? "This device only · set up sync"
+    : status.phase === "syncing"
+      ? "Syncing…"
+      : status.phase === "error"
+        ? "Sync paused · tap for details"
+        : `Synced ${timeAgo(status.lastSync)}`;
+
+  return (
+    <button
+      onClick={onClick}
+      className="mt-2 flex w-full items-center gap-2.5 rounded-lg border-t border-line px-1 pt-3 text-left transition hover:opacity-90"
+    >
+      <span
+        className={clsx(
+          "relative grid h-8 w-8 shrink-0 place-items-center rounded-lg ring-1 ring-white/10",
+          off ? "bg-overlay/[0.06] text-ink-muted" : "bg-accent-grad text-white"
+        )}
+      >
+        <Icon size={15} className={clsx(status.phase === "syncing" && "animate-spin")} />
+        {!off && (
+          <span
+            className={clsx(
+              "absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full ring-2 ring-bg-subtle",
+              status.phase === "error" ? "bg-red-400" : "bg-green-400"
+            )}
+          />
+        )}
+      </span>
+      <div className="min-w-0 leading-tight">
+        <div className="truncate text-xs font-medium text-ink">
+          {off ? "Local workspace" : "Synced workspace"}
+        </div>
+        <div className="truncate text-[10px] text-ink-faint">{subtitle}</div>
+      </div>
+    </button>
   );
 }

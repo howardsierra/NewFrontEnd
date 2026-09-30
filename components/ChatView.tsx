@@ -8,6 +8,7 @@ import { ModelBar } from "./ModelBar";
 import { useChat } from "@/lib/useChat";
 import { useStore } from "@/lib/store";
 import { visionSupport } from "@/lib/vision";
+import { hydrateImages, useSyncStatus } from "@/lib/sync/engine";
 import clsx from "clsx";
 import { FileText, Code2, Wand2, Lightbulb, ChevronRight, ArrowDown } from "lucide-react";
 
@@ -98,6 +99,12 @@ export function ChatView({ conv }: { conv: Conversation }) {
     }
     lastTopRef.current = top;
   };
+
+  // Fetch images this device doesn't hold from the synced vault.
+  const syncedAt = useSyncStatus((s) => s.lastSync);
+  useEffect(() => {
+    void hydrateImages(conv.id);
+  }, [conv.id, syncedAt]);
 
   // Jump to the latest message when switching conversations.
   useEffect(() => {
