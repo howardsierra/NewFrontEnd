@@ -17,6 +17,7 @@ import {
 // The version travels in a custom header rather than ETag/If-Match: Vercel's
 // edge compresses responses and rewrites ETag into a weak W/"…" form, which
 // then never matches the blob's real ETag.
+//   GET    /api/sync?vault=<id>&list=1        -> { keys }  (what's stored, for recovery)
 //   DELETE /api/sync?vault=<id>&key=<key|all> -> { ok }    (conv/<id> also removes its images)
 
 export const runtime = "nodejs";
@@ -83,7 +84,30 @@ async function deletePrefix(prefix: string) {
   } while (cursor);
 }
 
+/** Everything stored for a vault, as keys like "meta", "conv/<id>", "img/<id>/<att>". */
+async function listVault(vault: string): Promise<string[]> {
+  const prefix = `vaults/${vault}/`;
+  const keys: string[] = [];
+  let cursor: string | undefined;
+  do {
+    const page = await list({ prefix, cursor, limit: 1000, ...blobAuth() });
+    for (const b of page.blobs) keys.push(b.pathname.slice(prefix.length).replace(/\.bin$/, ""));
+    cursor = page.hasMore ? page.cursor : undefined;
+  } while (cursor);
+  return keys;
+}
+
 export async function GET(req: NextRequest) {
+  if (req.nextUrl.searchParams.has("list")) {
+    if (!configured()) return notConfigured();
+    const vault = req.nextUrl.searchParams.get("vault") ?? "";
+    if (!VAULT.test(vault)) return NextResponse.json({ error: "Bad vault." }, { status: 400 });
+    try {
+      return NextResponse.json({ keys: await listVault(vault) });
+    } catch (e) {
+      return fail(e);
+    }
+  }
   if (req.nextUrl.searchParams.has("status")) {
     // Names only (never values), to help diagnose a store that isn't picked up.
     const seen = Object.keys(process.env).filter((k) => /BLOB|STORE_ID/.test(k)).sort();

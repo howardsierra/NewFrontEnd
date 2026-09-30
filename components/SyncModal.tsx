@@ -10,6 +10,7 @@ import {
   probeVault,
   syncNow,
   useSyncStatus,
+  vaultFingerprint,
 } from "@/lib/sync/engine";
 import { generatePassphrase, normalizePassphrase } from "@/lib/sync/crypto";
 import {
@@ -303,7 +304,7 @@ function Enabled() {
         <button
           className="btn-soft text-sm"
           disabled={syncing}
-          onClick={() => syncNow()}
+          onClick={() => syncNow({ recover: true })}
         >
           <RefreshCw size={15} className={clsx(syncing && "animate-spin")} />
           Sync now
@@ -311,6 +312,23 @@ function Enabled() {
       </div>
 
       {status.phase === "error" && status.error && <ErrorBox message={status.error} />}
+
+      <div className="rounded-xl border border-line bg-bg-subtle/60 px-4 py-3 text-xs">
+        <div className="flex items-center justify-between gap-2">
+          <span className="font-medium text-ink">In your vault</span>
+          <span className="font-mono text-ink-faint" title="Same on every device using this passphrase">
+            Vault {vaultFingerprint(status.vault)}
+          </span>
+        </div>
+        <p className="mt-1 text-ink-muted">
+          {status.remote
+            ? `${status.remote.chats} chats · ${status.remote.images} images · ${status.remote.providers} providers · ${status.remote.personas} personas · ${status.remote.snippets} prompts · ${status.remote.presets} presets`
+            : "Tap Sync now to check."}
+        </p>
+        <p className="mt-1 text-[11px] text-ink-faint">
+          Every device on the same passphrase shows the same vault code.
+        </p>
+      </div>
 
       <p className="text-xs text-ink-muted">
         Changes sync automatically a few seconds after you make them, and whenever
