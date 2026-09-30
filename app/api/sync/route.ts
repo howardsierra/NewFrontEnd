@@ -23,7 +23,29 @@ const MAX_BYTES = 4_000_000;
 const VAULT = /^[a-f0-9]{64}$/;
 const KEY = /^(meta|conv\/[\w-]{1,64}|img\/[\w-]{1,64}\/[\w-]{1,64})$/;
 
-const configured = () => !!process.env.BLOB_READ_WRITE_TOKEN;
+/**
+ * Find Blob credentials. Stores connect either with a read-write token or
+ * (newer) a store id plus Vercel's OIDC identity, and the variable names can
+ * carry a custom prefix chosen when connecting the store.
+ */
+function blobAuth(): { token?: string; storeId?: string } | null {
+  const env = process.env;
+  if (env.BLOB_READ_WRITE_TOKEN || env.BLOB_STORE_ID) return {};
+  for (const [name, value] of Object.entries(env)) {
+    if (!value) continue;
+    if (name.endsWith("_READ_WRITE_TOKEN") && value.startsWith("vercel_blob_rw_")) {
+      return { token: value };
+    }
+  }
+  for (const [name, value] of Object.entries(env)) {
+    if (value && name.endsWith("_STORE_ID") && value.startsWith("store_")) {
+      return { storeId: value };
+    }
+  }
+  return null;
+}
+
+const configured = () => blobAuth() !== null;
 
 function notConfigured() {
   return NextResponse.json(
@@ -51,22 +73,24 @@ function fail(e: unknown) {
 async function deletePrefix(prefix: string) {
   let cursor: string | undefined;
   do {
-    const page = await list({ prefix, cursor, limit: 1000 });
-    if (page.blobs.length) await del(page.blobs.map((b) => b.url));
+    const page = await list({ prefix, cursor, limit: 1000, ...blobAuth() });
+    if (page.blobs.length) await del(page.blobs.map((b) => b.url), { ...blobAuth() });
     cursor = page.hasMore ? page.cursor : undefined;
   } while (cursor);
 }
 
 export async function GET(req: NextRequest) {
   if (req.nextUrl.searchParams.has("status")) {
-    return NextResponse.json({ configured: configured() });
+    // Names only (never values), to help diagnose a store that isn't picked up.
+    const seen = Object.keys(process.env).filter((k) => /BLOB|STORE_ID/.test(k)).sort();
+    return NextResponse.json({ configured: configured(), env: seen });
   }
   if (!configured()) return notConfigured();
   const p = parse(req);
   if (!p) return NextResponse.json({ error: "Bad vault or key." }, { status: 400 });
 
   try {
-    const res = await get(p.path, { access: "private", useCache: false });
+    const res = await get(p.path, { access: "private", useCache: false, ...blobAuth() });
     if (!res || res.statusCode !== 200) {
       return NextResponse.json({ error: "Not found." }, { status: 404 });
     }
@@ -107,6 +131,7 @@ export async function PUT(req: NextRequest) {
       contentType: "application/octet-stream",
       cacheControlMaxAge: 60,
       ...(ifMatch ? { ifMatch } : {}),
+      ...blobAuth(),
     });
     return NextResponse.json({ etag: blob.etag });
   } catch (e) {
@@ -126,7 +151,7 @@ export async function DELETE(req: NextRequest) {
     if (p.key === "all") {
       await deletePrefix(`vaults/${p.vault}/`);
     } else {
-      await del(p.path);
+      await del(p.path, { ...blobAuth() });
       if (p.key.startsWith("conv/")) {
         await deletePrefix(`vaults/${p.vault}/img/${p.key.slice(5)}/`);
       }
