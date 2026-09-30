@@ -10,6 +10,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@vercel/blob": "^2.8.0",
     "clsx": "2.1.1",
     "highlight.js": "11.10.0",
     "lucide-react": "0.451.0",

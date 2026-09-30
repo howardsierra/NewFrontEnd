@@ -22,7 +22,14 @@ function isQuotaError(e: unknown): boolean {
   );
 }
 
+let prunedNotified = false;
+
 function notify(kind: StorageNotice) {
+  // Once trimming starts it repeats on every save; say so only once.
+  if (kind === "pruned") {
+    if (prunedNotified) return;
+    prunedNotified = true;
+  }
   if (typeof window !== "undefined") {
     window.dispatchEvent(new CustomEvent(STORAGE_EVENT, { detail: kind }));
   }
