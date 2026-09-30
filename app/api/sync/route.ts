@@ -11,8 +11,12 @@ import {
 // browser; this route only moves bytes in and out of a private Blob store.
 //
 //   GET    /api/sync?status=1                 -> { configured }
-//   GET    /api/sync?vault=<id>&key=<key>     -> bytes (404 if missing), ETag header
-//   PUT    /api/sync?vault=<id>&key=<key>     -> { etag }  (If-Match honored; 412 on conflict)
+//   GET    /api/sync?vault=<id>&key=<key>     -> bytes (404 if missing), X-Sync-Version header
+//   PUT    /api/sync?vault=<id>&key=<key>     -> { etag }  (X-Sync-Version honored; 412 on conflict)
+//
+// The version travels in a custom header rather than ETag/If-Match: Vercel's
+// edge compresses responses and rewrites ETag into a weak W/"…" form, which
+// then never matches the blob's real ETag.
 //   DELETE /api/sync?vault=<id>&key=<key|all> -> { ok }    (conv/<id> also removes its images)
 
 export const runtime = "nodejs";
@@ -98,7 +102,7 @@ export async function GET(req: NextRequest) {
       headers: {
         "Content-Type": "application/octet-stream",
         "Cache-Control": "no-store",
-        ETag: res.blob.etag,
+        "X-Sync-Version": res.blob.etag,
       },
     });
   } catch (e: any) {
@@ -121,7 +125,8 @@ export async function PUT(req: NextRequest) {
       { status: 413 }
     );
   }
-  const ifMatch = req.headers.get("if-match") ?? undefined;
+  const ifMatch =
+    req.headers.get("x-sync-version")?.replace(/^W\//, "") || undefined;
 
   try {
     const blob = await put(p.path, Buffer.from(body), {
