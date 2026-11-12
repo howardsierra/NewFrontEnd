@@ -1,3 +1,4 @@
+import { providerFailure } from "@/lib/request-errors";
 import { NextRequest } from "next/server";
 import type { ChatRequest } from "@/lib/types";
 import { buildUpstreamCall, parseSse, StreamDiagnostics } from "@/lib/server/upstream";
@@ -14,6 +15,8 @@ export async function POST(request: NextRequest) {
   } catch {
     return json({ error: "Invalid request body." }, 400);
   }
+
+  if (!req || typeof req !== "object") return json({ error: "Invalid request body." }, 400);
 
   // Custom/local OpenAI-compatible servers may be keyless (LM Studio, Ollama).
   if (!req.apiKey && req.kind !== "custom") {
@@ -37,7 +40,7 @@ export async function POST(request: NextRequest) {
     });
   } catch (e: any) {
     return json(
-      { error: `Could not reach provider: ${e.message || "network error"}` },
+      { error: "Could not reach the provider. Check the connection or choose another provider.", errorCode: "network" },
       502
     );
   }
@@ -45,8 +48,8 @@ export async function POST(request: NextRequest) {
   if (!upstream.ok || !upstream.body) {
     const detail = await safeErrorDetail(upstream);
     return json(
-      { error: `Provider returned ${upstream.status}: ${detail}` },
-      upstream.status === 401 ? 401 : 502
+      providerFailure(upstream.status, detail, upstream.headers.get("retry-after")),
+      upstream.status >= 400 ? upstream.status : 502
     );
   }
 
@@ -130,7 +133,8 @@ async function safeErrorDetail(res: Response): Promise<string> {
     const text = await res.text();
     try {
       const parsed = JSON.parse(text);
-      return parsed.error?.message || parsed.error || text.slice(0, 300);
+      const detail = parsed.error?.message || parsed.error;
+      return typeof detail === "string" ? detail : text.slice(0, 300);
     } catch {
       return text.slice(0, 300);
     }

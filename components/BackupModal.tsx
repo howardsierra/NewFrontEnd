@@ -1,5 +1,8 @@
 "use client";
 
+import { unavailableImages } from "@/lib/export-chat";
+import { downloadFile } from "@/lib/download";
+
 import { useRef, useState } from "react";
 import { useStore } from "@/lib/store";
 import {
@@ -22,6 +25,7 @@ import {
 import clsx from "clsx";
 
 export function BackupModal({ onClose }: { onClose: () => void }) {
+  const libraryFiles = useStore((s) => s.libraryFiles);
   const providers = useStore((s) => s.providers);
   const presets = useStore((s) => s.presets);
   const snippets = useStore((s) => s.snippets);
@@ -31,7 +35,7 @@ export function BackupModal({ onClose }: { onClose: () => void }) {
   const conversations = useStore((s) => s.conversations);
   const importBackup = useStore((s) => s.importBackup);
 
-  const [includeKeys, setIncludeKeys] = useState(true);
+  const [includeKeys, setIncludeKeys] = useState(false);
   const [includeConversations, setIncludeConversations] = useState(false);
   const [copied, setCopied] = useState(false);
   const [mode, setMode] = useState<"merge" | "replace">("merge");
@@ -44,29 +48,22 @@ export function BackupModal({ onClose }: { onClose: () => void }) {
 
   const makeFile = (): BackupFile =>
     buildBackup(
-      { providers, presets, snippets, themes, regexScripts, personas, conversations },
+      { providers, presets, snippets, themes, regexScripts, personas, conversations, libraryFiles },
       { includeKeys, includeConversations }
     );
 
   const download = () => {
-    const blob = new Blob([JSON.stringify(makeFile(), null, 2)], {
-      type: "application/json",
-    });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = backupFilename();
-    a.click();
-    URL.revokeObjectURL(url);
+    downloadFile(JSON.stringify(makeFile(), null, 2), backupFilename(), "application/json");
   };
 
-  const copy = () => {
-    navigator.clipboard
-      .writeText(JSON.stringify(makeFile(), null, 2))
-      .then(() => {
-        setCopied(true);
-        setTimeout(() => setCopied(false), 1500);
-      });
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(makeFile(), null, 2));
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      setResult({ kind: "error", message: "Clipboard unavailable. Use Download backup to save the file." });
+    }
   };
 
   const handleImport = async (file: File) => {
@@ -86,7 +83,7 @@ export function BackupModal({ onClose }: { onClose: () => void }) {
     if (
       mode === "replace" &&
       !confirm(
-        "Replace mode overwrites all current providers, presets, and snippets with the backup. Continue?"
+        "Replace mode overwrites providers, presets, snippets, themes, regex scripts, and personas. Conversations are replaced only if included in the backup. Continue?"
       )
     ) {
       return;
@@ -121,6 +118,7 @@ export function BackupModal({ onClose }: { onClose: () => void }) {
               <span className="chip">{themes.length} themes</span>
               <span className="chip">{regexScripts.length} regex</span>
               <span className="chip">{personas.length} personas</span>
+              <span className="chip">{libraryFiles.length} kept files</span>
               {includeConversations && (
                 <span className="chip">{convCount} conversations</span>
               )}
@@ -139,6 +137,9 @@ export function BackupModal({ onClose }: { onClose: () => void }) {
               />
             </div>
 
+            {includeConversations && unavailableImages(conversations) > 0 && (
+              <p role="status" className="mt-3 rounded-lg border border-amber-500/30 p-3 text-xs text-ink-muted">{unavailableImages(conversations)} image attachments are unavailable on this device and their image data will be missing from this backup. Open those chats to load synced images before exporting.</p>
+            )}
             {includeKeys && (
               <div className="mt-3 flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200/90">
                 <ShieldAlert size={15} className="mt-0.5 shrink-0" />
@@ -213,7 +214,7 @@ export function BackupModal({ onClose }: { onClose: () => void }) {
                   {result.summary.providers} providers, {result.summary.presets}{" "}
                   presets, {result.summary.snippets} snippets,{" "}
                   {result.summary.themes} themes, {result.summary.regexScripts} regex,{" "}
-                  {result.summary.personas} personas
+                  {result.summary.personas} personas, {result.summary.libraryFiles} kept files
                   {result.summary.conversations
                     ? `, ${result.summary.conversations} conversations`
                     : ""}

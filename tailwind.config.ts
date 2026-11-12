@@ -38,14 +38,14 @@ const config: Config = {
         mono: ["var(--font-mono)", "ui-monospace", "monospace"],
       },
       boxShadow: {
-        glow: "0 0 0 1px rgba(124,108,255,0.35), 0 10px 40px -12px rgba(124,108,255,0.5)",
+        glow: "0 0 0 1px rgb(var(--c-accent) / 0.15), 0 4px 16px -12px rgb(var(--c-accent) / 0.2)",
         soft: "0 1px 0 0 rgba(255,255,255,0.04) inset, 0 12px 32px -16px rgba(0,0,0,0.7)",
-        panel: "0 24px 70px -28px rgba(0,0,0,0.85)",
+        panel: "0 20px 60px -24px rgba(0,0,0,0.4)",
       },
       backgroundImage: {
-        "accent-grad": "linear-gradient(135deg, #7c6cff 0%, #5b8cff 100%)",
+        "accent-grad": "linear-gradient(135deg, rgb(var(--c-accent)), rgb(var(--c-accent-glow)))",
         "accent-grad-soft":
-          "linear-gradient(135deg, rgba(124,108,255,0.18) 0%, rgba(91,140,255,0.14) 100%)",
+          "linear-gradient(135deg, rgb(var(--c-accent) / 0.08), rgb(var(--c-accent) / 0.04))",
       },
       keyframes: {
         "fade-in": {

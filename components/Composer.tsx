@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { nanoid } from "nanoid";
 import { parseFile } from "@/lib/files";
 import type { Attachment } from "@/lib/types";
 import { useStore } from "@/lib/store";
@@ -34,6 +35,7 @@ interface PendingFill {
 }
 
 export function Composer({
+  conversationId,
   busy,
   disabled,
   onSend,
@@ -41,17 +43,35 @@ export function Composer({
   onGenerateImage,
   imageWarning,
 }: {
+  conversationId: string;
   busy: boolean;
   disabled: boolean;
-  onSend: (text: string, attachments: Attachment[]) => void;
+  onSend: (text: string, attachments: Attachment[], revisionOf?: string) => void;
   onStop: () => void;
   onGenerateImage: (prompt: string, size: string) => void;
   /** Shown when an image is attached but the selected model can't see images. */
   imageWarning?: string;
 }) {
-  const [text, setText] = useState("");
+  const [text, setText] = useState(() => {
+    try { return sessionStorage.getItem(`flux-draft:${conversationId}`) ?? ""; }
+    catch { return ""; }
+  });
+  useEffect(() => {
+    try {
+      if (text) sessionStorage.setItem(`flux-draft:${conversationId}`, text);
+      else sessionStorage.removeItem(`flux-draft:${conversationId}`);
+    } catch { /* Drafts remain available in memory when storage is unavailable. */ }
+    const el = textarea.current;
+    if (el) { el.style.height = "auto"; el.style.height = Math.min(el.scrollHeight, 260) + "px"; }
+  }, [text, conversationId]);
+  const [revisionOf, setRevisionOf] = useState<string | undefined>();
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [parsing, setParsing] = useState(false);
+  const parsingRef = useRef(false);
+  const attachmentsRef = useRef<Attachment[]>([]);
+  const [fileErrors, setFileErrors] = useState<string[]>([]);
+  const [previewId, setPreviewId] = useState<string | null>(null);
+  const preview = attachments.find((attachment) => attachment.id === previewId);
   const [dragOver, setDragOver] = useState(false);
   const [slash, setSlash] = useState<SlashState | null>(null);
   const [slashIndex, setSlashIndex] = useState(0);
@@ -119,6 +139,26 @@ export function Composer({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    const revise = (event: Event) => {
+      const detail = (event as CustomEvent<{ filename: string; content: string; fileId?: string }>).detail;
+      if (!detail || typeof detail.filename !== "string" || typeof detail.content !== "string") return;
+      if (parsingRef.current) { setFileErrors(["Wait for attachments to finish loading before revising another file."]); return; }
+      const attachment: Attachment = { id: nanoid(), name: detail.filename, kind: "text", mime: "text/plain", text: detail.content, size: new TextEncoder().encode(detail.content).byteLength };
+      const existing = attachmentsRef.current.some((item) => item.name === attachment.name && item.text === attachment.text);
+      const next = existing ? attachmentsRef.current : [...attachmentsRef.current, attachment];
+      if (next.length > 10 || new TextEncoder().encode(JSON.stringify(next)).byteLength > 3_500_000) { setFileErrors(["Remove an attachment or use a smaller file before starting this revision."]); return; }
+      attachmentsRef.current = next;
+      setAttachments(next);
+      setImageMode(false);
+      setRevisionOf(typeof detail.fileId === "string" ? detail.fileId : undefined);
+      setText((previous) => `${previous.trim() ? previous + "\n\n" : ""}Revise ${detail.filename} and return the complete updated file in the same format. Changes: `);
+      textarea.current?.focus();
+    };
+    document.addEventListener("revise-file", revise);
+    return () => document.removeEventListener("revise-file", revise);
+  }, []);
+
   /** Detect an in-progress "/command" immediately before the caret. */
   const updateSlash = (value: string, caret: number) => {
     const before = value.slice(0, caret);
@@ -141,21 +181,35 @@ export function Composer({
   };
 
   const handleFiles = async (files: FileList | File[]) => {
+    if (imageMode) { setFileErrors(["Switch to chat mode before attaching files. Image generation uses your prompt only."]); return; }
+    if (parsingRef.current) { setFileErrors((errors) => [...errors, "Files are still being read. Wait for them to finish before adding more."]); return; }
+    parsingRef.current = true;
     setParsing(true);
-    const added: Attachment[] = [];
-    for (const file of Array.from(files)) {
-      try {
-        added.push(await parseFile(file));
-      } catch (e: any) {
-        alert(e.message || `Could not read ${file.name}`);
+    setFileErrors([]);
+    try {
+      for (const file of Array.from(files)) {
+        try {
+          if (attachmentsRef.current.length >= 10) throw new Error("You can attach up to 10 files per message. Remove a file before adding more.");
+          const attachment = await parseFile(file);
+          const next = [...attachmentsRef.current, attachment];
+          if (new TextEncoder().encode(JSON.stringify(next)).byteLength > 3_500_000) {
+            throw new Error(`${file.name}: combined attachments are too large. Keep the total under 3.5 MB after processing.`);
+          }
+          attachmentsRef.current = next;
+          setAttachments(next);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "Could not read this file.";
+          setFileErrors((errors) => [...errors, message.includes(file.name) ? message : `${file.name}: ${message}`]);
+        }
       }
+    } finally {
+      parsingRef.current = false;
+      setParsing(false);
     }
-    setAttachments((prev) => [...prev, ...added]);
-    setParsing(false);
   };
 
   const submit = () => {
-    if (busy || parsing) return;
+    if (disabled || busy || parsingRef.current) return;
     if (imageMode) {
       if (!text.trim()) return;
       onGenerateImage(text.trim(), imageSize);
@@ -165,10 +219,14 @@ export function Composer({
       return;
     }
     if (!text.trim() && attachments.length === 0) return;
-    onSend(text.trim(), attachments);
+    onSend(text.trim(), attachments, revisionOf);
+    setRevisionOf(undefined);
     setLaunchKey((k) => k + 1);
     setText("");
+    attachmentsRef.current = [];
     setAttachments([]);
+    setPreviewId(null);
+    setFileErrors([]);
     if (textarea.current) textarea.current.style.height = "auto";
   };
 
@@ -183,7 +241,7 @@ export function Composer({
     <div className="px-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-1 sm:px-6 sm:pb-4">
       <div
         className={clsx(
-          "glass relative mx-auto max-w-3xl rounded-[26px] p-2.5 shadow-[0_22px_60px_-26px_rgba(0,0,0,0.6)] ring-1 ring-overlay/[0.04] transition-all duration-200 focus-within:ring-accent/30 focus-within:shadow-glow",
+          "glass relative mx-auto max-w-3xl rounded-[20px] p-2.5 transition-all duration-200 focus-within:ring-accent/30 focus-within:shadow-soft",
           dragOver && "border-accent shadow-glow"
         )}
         onDragOver={(e) => {
@@ -236,6 +294,14 @@ export function Composer({
           </div>
         )}
 
+        {parsing && <p role="status" className="px-3 py-2 text-xs text-ink-muted">Reading attachments…</p>}
+        {fileErrors.length > 0 && (
+          <div role="alert" aria-label="Attachment errors" className="mx-1 mb-2 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-ink">
+            <div className="flex items-center justify-between gap-2"><strong>Some files could not be attached</strong>
+              <button aria-label="Dismiss file errors" onClick={() => setFileErrors([])}><X size={14} /></button></div>
+            <ul className="mt-2 list-disc space-y-1 pl-4">{fileErrors.map((error, i) => <li key={i}>{error}</li>)}</ul>
+          </div>
+        )}
         {imageWarning && attachments.some((a) => a.kind === "image") && (
           <div className="mx-1 mb-1 flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-xs text-amber-500">
             <ImageIcon size={14} className="mt-0.5 shrink-0" />
@@ -257,19 +323,24 @@ export function Composer({
                 ) : (
                   <FileText size={14} className="text-accent-soft" />
                 )}
-                <div className="leading-tight">
+                <button className="text-left leading-tight" aria-label={`Preview ${a.name}`} onClick={() => setPreviewId(previewId === a.id ? null : a.id)}>
                   <div className="max-w-[140px] truncate text-ink">{a.name}</div>
                   <div className="text-[10px] text-ink-faint">
                     {a.kind === "text"
                       ? `${a.text?.length ?? 0} chars`
                       : `${(a.size / 1024).toFixed(0)} KB`}
                   </div>
-                </div>
+                </button>
                 <button
+                  aria-label={`Remove ${a.name}`}
                   className="ml-1 text-ink-faint hover:text-red-400"
-                  onClick={() =>
-                    setAttachments((prev) => prev.filter((x) => x.id !== a.id))
-                  }
+                  onClick={() => {
+                    const next = attachmentsRef.current.filter((x) => x.id !== a.id);
+                    attachmentsRef.current = next;
+                    setAttachments(next);
+                    setRevisionOf(undefined);
+                    if (previewId === a.id) setPreviewId(null);
+                  }}
                 >
                   <X size={13} />
                 </button>
@@ -278,6 +349,19 @@ export function Composer({
           </div>
         )}
 
+        {preview && (
+          <section aria-label={`Attachment preview: ${preview.name}`} className="m-2 overflow-hidden rounded-xl border border-line bg-bg-panel">
+            <div className="flex items-center justify-between gap-2 border-b border-line px-3 py-2 text-xs"><span className="truncate font-medium">{preview.name}</span>
+              <button aria-label="Close attachment preview" onClick={() => setPreviewId(null)}><X size={14} /></button></div>
+            {preview.kind === "text" ? <pre className="max-h-52 overflow-auto whitespace-pre-wrap break-words p-3 font-mono text-xs text-ink-muted">{preview.text?.slice(0, 12000)}</pre>
+              : <img src={preview.dataUrl} alt={preview.name} className="max-h-52 max-w-full object-contain p-2" />}
+            {preview.kind === "text" && <div className="border-t border-line p-2">
+              <button className="btn-soft text-xs" onClick={() => document.dispatchEvent(new CustomEvent("revise-file", { detail: { filename: preview.name, content: preview.text ?? "" } }))}>Revise this file with AI</button>
+              {/\.(pdf|docx)$/i.test(preview.name) && <p className="mt-2 text-[11px] text-ink-muted">Revisions use extracted text. Original layout and embedded media are not retained.</p>}
+            </div>}
+            {preview.kind === "text" && (preview.text?.length ?? 0) > 12000 && <p className="border-t border-line p-2 text-[11px] text-ink-faint">Preview shows the first 12,000 characters. The full text is attached.</p>}
+          </section>
+        )}
         {imageMode && (
           <div className="mx-1 mb-1 flex items-center gap-2 rounded-lg border border-accent/30 bg-accent/10 px-3 py-1.5 text-xs text-accent-soft">
             <ImagePlus size={14} />
@@ -303,6 +387,7 @@ export function Composer({
             onClick={() => fileInput.current?.click()}
             title="Attach files (html, css, js, json, pdf, images…)"
             aria-label="Attach files"
+            disabled={imageMode || parsing}
           >
             {parsing ? (
               <Loader2 size={18} className="animate-spin" />
@@ -333,12 +418,14 @@ export function Composer({
             onClick={() => setImageMode((v) => !v)}
             title="Image generation mode"
             aria-label="Toggle image generation"
+            disabled={attachments.length > 0 || parsing}
           >
             <ImagePlus size={18} />
           </button>
 
           <textarea
             ref={textarea}
+            aria-label={imageMode ? "Image prompt" : "Message"}
             value={text}
             onPaste={(e) => {
               // Pasted screenshots / copied images arrive as clipboard files.
@@ -358,6 +445,7 @@ export function Composer({
               updateSlash(el.value, el.selectionStart ?? el.value.length);
             }}
             onKeyDown={(e) => {
+              if (e.nativeEvent.isComposing) return;
               const menuOpen = slash && slashMatches.length > 0;
               if (menuOpen) {
                 if (e.key === "ArrowDown") {
@@ -423,7 +511,7 @@ export function Composer({
         </div>
       </div>
       <p className="mx-auto mt-2 hidden max-w-3xl text-center text-[11px] text-ink-faint sm:block">
-        Keys stay in your browser. Attach HTML, CSS, JS, JSON, PDFs, images, and code.
+        Enter to send · Shift+Enter for a new line · / for saved prompts
       </p>
     </div>
   );

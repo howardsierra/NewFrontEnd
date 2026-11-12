@@ -6,6 +6,10 @@ import { useSyncStatus } from "@/lib/sync/engine";
 import { timeAgo } from "./SyncModal";
 import {
   Plus,
+  Sparkles,
+  ChevronDown,
+  Files,
+  Search,
   MessageSquare,
   Trash2,
   Settings,
@@ -25,6 +29,7 @@ import {
 import clsx from "clsx";
 
 export function Sidebar({
+  onOpenFiles,
   onOpenSettings,
   onOpenPresets,
   onOpenSnippets,
@@ -35,6 +40,7 @@ export function Sidebar({
   onOpenSync,
   onClose,
 }: {
+  onOpenFiles: () => void;
   onOpenSettings: () => void;
   onOpenPresets: () => void;
   onOpenSnippets: () => void;
@@ -53,23 +59,23 @@ export function Sidebar({
   const renameConversation = useStore((s) => s.renameConversation);
   const providers = useStore((s) => s.providers);
 
+  const [query, setQuery] = useState("");
+  const normalizedQuery = query.trim().toLowerCase();
+  const filtered = conversations.filter((c) =>
+    c.title.toLowerCase().includes(normalizedQuery) ||
+    c.messages.some((m) => m.content.toLowerCase().includes(normalizedQuery))
+  ).sort((a, b) => b.updatedAt - a.updatedAt);
+
   const [editing, setEditing] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
 
   return (
-    <div className="flex h-full w-72 flex-col border-r border-line/70 bg-gradient-to-b from-bg-elevated/30 to-bg-subtle/60 backdrop-blur-xl">
-      <div className="flex items-center gap-2.5 px-4 py-4">
-        <span className="relative grid h-8 w-8 place-items-center">
-          <span className="absolute inset-0 -z-10 rounded-full bg-accent/45 blur-md" />
-          <i className="absolute h-[22px] w-[7px] rounded-full bg-accent" />
-          <i className="absolute h-[22px] w-[7px] rounded-full bg-accent-glow" style={{ transform: "rotate(60deg)" }} />
-          <i className="absolute h-[22px] w-[7px] rounded-full bg-accent-soft" style={{ transform: "rotate(-60deg)" }} />
-        </span>
+    <div className="flex h-full w-72 min-h-0 flex-col border-r border-line/60 bg-bg-subtle">
+      <div className="flex items-center gap-3 px-5 pb-5 pt-6">
+        <span className="grid h-10 w-10 place-items-center rounded-2xl border border-line bg-bg-panel text-accent-soft"><Sparkles size={20} strokeWidth={1.5} /></span>
         <div className="leading-tight">
-          <div className="font-display text-base font-bold tracking-tight text-gradient">
-            Flux.AI
-          </div>
-          <div className="text-[11px] text-ink-faint">AI workspace</div>
+          <div className="font-display text-lg font-semibold tracking-tight text-ink">Flux.AI</div>
+          <div className="mt-1 text-xs text-ink-muted">Your personal studio</div>
         </div>
       </div>
 
@@ -83,37 +89,48 @@ export function Sidebar({
         >
           <Plus size={16} /> New chat
           <kbd className="ml-auto rounded border border-white/25 px-1.5 py-0.5 text-[10px] font-normal text-white/70">
-            ⌘K
+            ⌘/Ctrl K
           </kbd>
         </button>
       </div>
 
+      <div className="mx-3 mt-2">
+        <button className="nav-item nav-item-featured" onClick={() => { onOpenFiles(); onClose?.(); }}><Files size={17} className="text-accent-soft" />File library</button>
+      </div>
+      <label className="relative mx-3 mt-3 block">
+        <Search size={14} className="pointer-events-none absolute left-3 top-3 text-ink-faint" />
+        <input aria-label="Search conversations" placeholder="Search chats & messages" value={query}
+          onChange={(e) => setQuery(e.target.value)} className="input pl-9 pr-8 text-xs" />
+        {query && <button aria-label="Clear search" onClick={() => setQuery("")} className="absolute right-2 top-2 p-1 text-ink-muted"><X size={14} /></button>}
+      </label>
       <div className="mt-4 flex items-center justify-between px-4 pb-1.5">
-        <span className="text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
-          Recent
+        <span className="text-xs font-medium text-ink-muted">
+          {query ? "Search results" : "Recent chats"}
         </span>
+        <span className="text-[11px] text-ink-faint">{filtered.length}</span>
       </div>
 
-      <div className="flex-1 space-y-0.5 overflow-y-auto px-2 pb-2">
+      <div className="min-h-20 flex-1 space-y-0.5 overflow-y-auto px-2 pb-2">
         {conversations.length === 0 && (
           <p className="px-3 py-6 text-center text-xs text-ink-faint">
             No conversations yet.
           </p>
         )}
-        {conversations.map((c) => {
+        {filtered.length === 0 && query && <p role="status" className="px-3 py-6 text-center text-xs text-ink-muted">No chats found. Try another search.</p>}
+        {filtered.map((c) => {
           const isActive = c.id === activeId;
           return (
             <div
               key={c.id}
               className={clsx(
-                "group relative flex items-center gap-2 rounded-lg px-2.5 py-2 text-sm transition-colors",
+                "group relative flex min-h-11 items-center gap-2 rounded-xl px-3 py-2 text-sm transition-colors",
                 isActive
-                  ? "bg-gradient-to-r from-accent/20 via-accent/[0.07] to-transparent text-ink ring-1 ring-inset ring-accent/15"
+                  ? "bg-accent/10 text-ink"
                   : "text-ink-muted hover:bg-overlay/[0.05] hover:text-ink"
               )}
             >
               {isActive && (
-                <span className="absolute inset-y-1.5 left-0 w-0.5 rounded-full bg-accent-grad" />
+                <span className="absolute inset-y-3 left-0 w-0.5 rounded-full bg-accent" />
               )}
               {editing === c.id ? (
                 <>
@@ -159,7 +176,7 @@ export function Sidebar({
                     <span className="truncate">{c.title}</span>
                   </button>
                   <button
-                    className="opacity-0 transition group-hover:opacity-100 hover:text-ink"
+                    className="opacity-100 transition sm:opacity-0 group-hover:opacity-100 focus:opacity-100 group-focus-within:opacity-100 hover:text-ink"
                     onClick={() => {
                       setEditing(c.id);
                       setDraft(c.title);
@@ -169,8 +186,10 @@ export function Sidebar({
                     <Pencil size={13} />
                   </button>
                   <button
-                    className="opacity-0 transition group-hover:opacity-100 hover:text-red-400"
-                    onClick={() => removeConversation(c.id)}
+                    className="opacity-100 transition sm:opacity-0 group-hover:opacity-100 focus:opacity-100 group-focus-within:opacity-100 hover:text-red-400"
+                    onClick={() => {
+                      if (!c.messages.length || window.confirm(`Delete “${c.title}”? This cannot be undone.`)) removeConversation(c.id);
+                    }}
                     aria-label="Delete"
                   >
                     <Trash2 size={13} />
@@ -182,88 +201,24 @@ export function Sidebar({
         })}
       </div>
 
-      <div className="border-t border-line p-3">
-        <span className="mb-1 block px-2 text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
-          Studio
-        </span>
-        <div className="space-y-0.5">
-          <button
-            className="btn-ghost w-full justify-start"
-            onClick={() => {
-              onOpenSnippets();
-              onClose?.();
-            }}
-          >
-            <BookText size={16} />
-            Prompt library
-          </button>
-          <button
-            className="btn-ghost w-full justify-start"
-            onClick={() => {
-              onOpenPersonas();
-              onClose?.();
-            }}
-          >
-            <Drama size={16} />
-            Personas
-          </button>
-          <button
-            className="btn-ghost w-full justify-start"
-            onClick={() => {
-              onOpenPresets();
-              onClose?.();
-            }}
-          >
-            <Wand2 size={16} />
-            SillyTavern presets
-          </button>
-          <button
-            className="btn-ghost w-full justify-start"
-            onClick={() => {
-              onOpenThemes();
-              onClose?.();
-            }}
-          >
-            <Palette size={16} />
-            ST themes
-          </button>
-          <button
-            className="btn-ghost w-full justify-start"
-            onClick={() => {
-              onOpenRegex();
-              onClose?.();
-            }}
-          >
-            <Regex size={16} />
-            ST regex scripts
-          </button>
-          <button className="btn-ghost w-full justify-start" onClick={onOpenSettings}>
-            <Settings size={16} />
-            Providers & keys
-            {providers.length === 0 && (
-              <span className="ml-auto rounded-full bg-accent/20 px-2 py-0.5 text-[10px] text-accent-soft">
-                setup
-              </span>
-            )}
-          </button>
-          <button
-            className="btn-ghost w-full justify-start"
-            onClick={() => {
-              onOpenBackup();
-              onClose?.();
-            }}
-          >
-            <DatabaseBackup size={16} />
-            Backup & restore
-          </button>
+      <div className="shrink-0 border-t border-line/60 px-3 pb-3 pt-2">
+        <details className="studio-tools max-h-[40dvh] overflow-y-auto">
+          <summary className="nav-item cursor-pointer"><Wand2 size={17} />Studio tools<ChevronDown size={14} className="studio-chevron ml-auto transition-transform" /></summary>
+          <div className="mb-2 ml-2 space-y-0.5 border-l border-line pl-2">
+            {[
+              { label: "Prompt library", icon: BookText, action: onOpenSnippets },
+              { label: "Personas", icon: Drama, action: onOpenPersonas },
+              { label: "SillyTavern presets", icon: Wand2, action: onOpenPresets },
+              { label: "ST themes", icon: Palette, action: onOpenThemes },
+              { label: "ST regex scripts", icon: Regex, action: onOpenRegex },
+            ].map((tool) => <button key={tool.label} className="nav-item" onClick={() => { tool.action(); onClose?.(); }}><tool.icon size={16} />{tool.label}</button>)}
+          </div>
+        </details>
+        <button className="nav-item" onClick={() => { onOpenSettings(); onClose?.(); }}><Settings size={17} />Providers &amp; keys{providers.length === 0 && <span className="ml-auto rounded-md bg-accent/10 px-2 py-1 text-[10px] font-medium text-accent-soft">Set up</span>}</button>
+        <div className="mt-3 flex items-center gap-1 border-t border-line/60 pt-1">
+          <SyncCard onClick={() => { onOpenSync(); onClose?.(); }} />
+          <button className="btn-ghost min-w-10 px-2" title="Backup & restore" aria-label="Backup & restore" onClick={() => { onOpenBackup(); onClose?.(); }}><DatabaseBackup size={17} /></button>
         </div>
-
-        <SyncCard
-          onClick={() => {
-            onOpenSync();
-            onClose?.();
-          }}
-        />
       </div>
     </div>
   );
@@ -290,12 +245,12 @@ function SyncCard({ onClick }: { onClick: () => void }) {
   return (
     <button
       onClick={onClick}
-      className="mt-2 flex w-full items-center gap-2.5 rounded-lg border-t border-line px-1 pt-3 text-left transition hover:opacity-90"
+      className="flex min-w-0 flex-1 items-center gap-2.5 rounded-lg px-1 py-3 text-left transition hover:opacity-90"
     >
       <span
         className={clsx(
-          "relative grid h-8 w-8 shrink-0 place-items-center rounded-lg ring-1 ring-white/10",
-          off ? "bg-overlay/[0.06] text-ink-muted" : "bg-accent-grad text-white"
+          "relative grid h-8 w-8 shrink-0 place-items-center rounded-lg",
+          off ? "bg-overlay/[0.06] text-ink-muted" : "bg-accent/10 text-accent-soft"
         )}
       >
         <Icon size={15} className={clsx(status.phase === "syncing" && "animate-spin")} />
@@ -312,7 +267,7 @@ function SyncCard({ onClick }: { onClick: () => void }) {
         <div className="truncate text-xs font-medium text-ink">
           {off ? "Local workspace" : "Synced workspace"}
         </div>
-        <div className="truncate text-[10px] text-ink-faint">{subtitle}</div>
+        <div className="truncate text-[11px] text-ink-muted">{subtitle}</div>
       </div>
     </button>
   );

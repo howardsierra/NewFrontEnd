@@ -1,3 +1,5 @@
+import { exportFilename } from "./download";
+
 // SillyTavern Regex script builder (targets ST 1.18.0).
 // Exported JSON imports via Extensions → Regex → Import.
 
@@ -143,8 +145,7 @@ export function testRegex(d: RegexDraft, sample: string): RegexTestResult {
 }
 
 export function regexFilename(name: string): string {
-  const safe = name.trim().replace(/[^a-z0-9_-]+/gi, "_").replace(/^_+|_+$/g, "");
-  return `${safe || "regex"}.json`;
+  return exportFilename(name, "json", "regex");
 }
 
 /** A few broadly-useful starter scripts. */

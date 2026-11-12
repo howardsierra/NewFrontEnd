@@ -1,5 +1,7 @@
 "use client";
 
+import { downloadFile } from "@/lib/download";
+
 import { useMemo, useRef, useState } from "react";
 import { useStore } from "@/lib/store";
 import { STARTER_SNIPPETS } from "@/lib/snippets";
@@ -90,15 +92,7 @@ export function SnippetLibrary({ onClose }: { onClose: () => void }) {
 
   const exportAll = () => {
     const data = snippets.map(({ title, body }) => ({ title, body }));
-    const blob = new Blob([JSON.stringify(data, null, 2)], {
-      type: "application/json",
-    });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "snippets.json";
-    a.click();
-    URL.revokeObjectURL(url);
+    downloadFile(JSON.stringify(data, null, 2), "snippets.json", "application/json");
   };
 
   const importFile = async (file: File) => {

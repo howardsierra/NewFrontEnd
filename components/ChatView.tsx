@@ -10,7 +10,8 @@ import { useStore } from "@/lib/store";
 import { visionSupport } from "@/lib/vision";
 import { hydrateImages, useSyncStatus } from "@/lib/sync/engine";
 import clsx from "clsx";
-import { FileText, Code2, Wand2, Lightbulb, ChevronRight, ArrowDown } from "lucide-react";
+import { downloadConversation } from "@/lib/export-chat";
+import { Download, Sparkles, ArrowUpRight, Settings2, FileText, Code2, Wand2, Lightbulb, ArrowDown } from "lucide-react";
 
 const SUGGESTIONS = [
   {
@@ -47,14 +48,14 @@ const SUGGESTIONS = [
 ];
 
 const TILE: Record<string, string> = {
-  peach: "bg-[#f9eae0] text-[#cc7548]",
-  blue: "bg-[#e4eef9] text-[#4c83b8]",
-  violet: "bg-[#eee8fa] text-[#8061ba]",
-  green: "bg-[#e4f2e8] text-[#56966b]",
+  peach: "bg-[#f9eae0] text-[#985033]",
+  blue: "bg-[#e4eef9] text-[#3d638c]",
+  violet: "bg-[#eee8fa] text-[#70539d]",
+  green: "bg-[#e4f2e8] text-[#3d6d4c]",
 };
 
 export function ChatView({ conv }: { conv: Conversation }) {
-  const { send, stop, regenerate, generateImage, busy } = useChat();
+  const { send, stop, regenerate, generateImage, retry, branchAndSend, busy } = useChat();
   const providers = useStore((s) => s.providers);
   const scrollRef = useRef<HTMLDivElement>(null);
   // Follow the stream only while the reader is at (or near) the bottom.
@@ -62,7 +63,7 @@ export function ChatView({ conv }: { conv: Conversation }) {
   const [atBottom, setAtBottom] = useState(true);
 
   const provider = providers.find((p) => p.id === conv.providerId);
-  const providerReady = !!provider && (
+  const providerReady = !!provider && provider.enabled && (
     provider.kind === "custom" ? !!provider.baseUrl : !!provider.apiKey
   );
   const ready = providerReady && !!conv.model;
@@ -135,6 +136,15 @@ export function ChatView({ conv }: { conv: Conversation }) {
         }
       />
 
+      {hasMessages && (
+        <div className="flex items-center justify-between gap-3 border-b border-line/50 px-4 py-2 sm:px-6">
+          <div className="min-w-0"><p className="truncate text-sm font-medium">{conv.title}</p>
+            <p className="text-[11px] text-ink-faint">{conv.messages.length} messages</p></div>
+          <button className="btn-ghost shrink-0 text-xs" onClick={() => downloadConversation(conv)} title="Export conversation as Markdown">
+            <Download size={14} /> Export chat
+          </button>
+        </div>
+      )}
       <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
         <div
           ref={scrollRef}
@@ -143,7 +153,7 @@ export function ChatView({ conv }: { conv: Conversation }) {
         >
           {!hasMessages ? (
             <Welcome
-              onPick={(p) => send(p, [])}
+              onPick={(p) => document.dispatchEvent(new CustomEvent("insert-snippet", { detail: p }))}
               ready={ready}
             />
           ) : (
@@ -153,8 +163,10 @@ export function ChatView({ conv }: { conv: Conversation }) {
                   key={m.id}
                   message={m}
                   convId={conv.id}
+                  onBranch={m.role === "user" && ready && !busy ? (text) => branchAndSend(conv.id, m.id, text) : undefined}
+                  onRetry={i === conv.messages.length - 1 && !!m.error && ready && !busy ? retry : undefined}
                   onRegenerate={
-                    i === conv.messages.length - 1 && m.role === "assistant" && !busy
+                    i === conv.messages.length - 1 && m.role === "assistant" && !m.imageRequest && ready && !busy
                       ? regenerate
                       : undefined
                   }
@@ -183,6 +195,8 @@ export function ChatView({ conv }: { conv: Conversation }) {
       </div>
 
       <Composer
+        key={conv.id}
+        conversationId={conv.id}
         busy={busy}
         disabled={!ready}
         onSend={send}
@@ -202,57 +216,44 @@ function Welcome({
   ready: boolean;
 }) {
   return (
-    <div className="relative mx-auto flex max-w-2xl flex-col items-center px-4 py-10 text-center sm:py-16">
-      <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-72 overflow-hidden">
-        <span
-          className="aurora-blob left-[18%] top-2 h-40 w-40"
-          style={{ background: "rgb(var(--c-accent) / 0.55)", animation: "aurora-a 9s ease-in-out infinite" }}
-        />
-        <span
-          className="aurora-blob right-[16%] top-10 h-44 w-44"
-          style={{ background: "rgb(var(--c-accent-glow) / 0.5)", animation: "aurora-b 11s ease-in-out infinite" }}
-        />
+    <section className="welcome-stage relative mx-auto flex w-full max-w-3xl flex-col px-5 py-10 sm:px-8 sm:py-16">
+      <div className="mb-8 flex items-center gap-2 text-xs font-medium tracking-[0.08em] text-ink-muted">
+        <span className="h-1.5 w-1.5 rounded-full bg-accent" /> Your personal AI workspace
       </div>
-      <div className="relative mb-6">
-        <div className="absolute inset-0 -z-10 animate-glow-pulse rounded-[24px] bg-accent/40 blur-2xl" />
-        <div
-          className="h-[64px] w-[64px] rounded-[20px] ring-1 ring-white/20"
-          style={{
-            background:
-              "radial-gradient(circle at 34% 27%, #fff 0 3%, #d8b9f8 13%, #926ede 39%, #4f3e9a 73%, #2d275c 100%)",
-            transform: "rotate(-9deg)",
-            boxShadow: "inset -8px -9px 15px rgba(49,38,81,0.53), 0 8px 22px rgba(136,117,198,0.28)",
-          }}
-        />
+      <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl border border-accent/25 bg-accent/10 text-accent-soft">
+        <Sparkles size={23} strokeWidth={1.5} />
       </div>
-      <h1 className="text-2xl font-semibold tracking-tight text-gradient sm:text-3xl">
-        What can I help you create?
+      <h1 className="max-w-lg font-display text-4xl font-medium leading-[1.2] tracking-tight text-ink sm:text-5xl">
+        A little curiosity.<br /><span className="text-gradient">Endless possibilities.</span>
       </h1>
-      <p className="mt-2.5 text-sm text-ink-muted">
-        {ready
-          ? "Choose a starting point or ask me anything."
-          : "Add a provider key and select a model in the top bar to begin."}
+      <p className="mt-4 max-w-md text-sm leading-relaxed text-ink-muted sm:text-base">
+        A space to think, write, and build. Bring your favorite models and make something yours.
       </p>
-
-      <div className="mt-9 grid w-full gap-3 sm:grid-cols-2">
+      {!ready && (
+        <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-line bg-bg-panel p-4 sm:p-5">
+          <div><p className="text-sm font-medium">Make your first connection</p>
+            <p className="mt-1 text-xs text-ink-muted">Connect a provider, then choose a model in the top bar.</p></div>
+          <button className="btn-primary text-xs" onClick={() => document.dispatchEvent(new CustomEvent("open-settings"))}>
+            <Settings2 size={14} /> Connect a provider
+          </button>
+        </div>
+      )}
+      <div className="mb-3 mt-9 flex items-center justify-between">
+        <h2 className="text-xs font-medium text-ink-muted">Start with a spark</h2>
+        <span className="text-[11px] text-ink-faint">Pick a prompt. Make it yours.</span>
+      </div>
+      <div className="grid w-full gap-3 sm:grid-cols-2">
         {SUGGESTIONS.map((s) => (
-          <button
-            key={s.title}
-            disabled={!ready}
-            onClick={() => onPick(s.prompt)}
-            className="group flex items-center gap-3 rounded-2xl border border-line/80 bg-overlay/[0.02] p-3.5 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/40 hover:bg-overlay/[0.05] hover:shadow-glow disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0"
-          >
-            <span className={clsx("grid h-10 w-10 shrink-0 place-items-center rounded-xl", TILE[s.tile])}>
-              <s.icon size={19} />
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="block text-sm font-medium text-ink">{s.title}</span>
-              <span className="block truncate text-xs text-ink-faint">{s.desc}</span>
-            </span>
-            <ChevronRight size={16} className="shrink-0 text-ink-faint opacity-0 transition group-hover:opacity-100" />
+          <button key={s.title} onClick={() => onPick(s.prompt)}
+            className="group flex items-start gap-3 rounded-2xl border border-line/70 bg-bg-panel p-4 text-left transition duration-200 hover:border-accent/40 hover:bg-bg-elevated/30">
+            <span className={clsx("grid h-9 w-9 shrink-0 place-items-center rounded-xl", TILE[s.tile])}><s.icon size={17} /></span>
+            <span className="min-w-0 flex-1 pt-0.5"><span className="block text-sm font-medium text-ink">{s.title}</span>
+              <span className="mt-1 block text-xs leading-relaxed text-ink-muted">{s.desc}</span></span>
+            <ArrowUpRight size={14} className="mt-1 shrink-0 text-ink-faint transition group-hover:text-accent-soft" />
           </button>
         ))}
       </div>
-    </div>
+      <p className="mt-6 text-[11px] text-ink-faint">Your models. Your prompts. Your pace.</p>
+    </section>
   );
 }

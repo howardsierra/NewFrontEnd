@@ -3,6 +3,8 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { nanoid } from "nanoid";
+import type { LibraryFile } from "./file-library";
+import { branchConversation } from "./branch";
 import {
   Conversation,
   ProviderConfig,
@@ -46,6 +48,14 @@ export interface SavedPersona extends PersonaDraft {
   updatedAt: number;
 }
 
+function libraryWasSaved(expected: LibraryFile[]): boolean {
+  if (typeof window === "undefined") return true;
+  try {
+    const saved = JSON.parse(window.localStorage.getItem("newfrontend-store") || "null");
+    return JSON.stringify(saved?.state?.libraryFiles) === JSON.stringify(expected);
+  } catch { return false; }
+}
+
 interface AppState {
   providers: ProviderConfig[];
   conversations: Conversation[];
@@ -58,6 +68,10 @@ interface AppState {
   regexScripts: SavedRegex[];
   personas: SavedPersona[];
   uiTheme: "dark" | "light";
+  libraryFiles: LibraryFile[];
+  keepLibraryFile: (file: LibraryFile) => void;
+  saveFileVersion: (file: LibraryFile, filename: string, content: string, path?: string) => string;
+  removeLibraryFile: (id: string) => void;
   hydrated: boolean;
   setHydrated: () => void;
   setUiTheme: (t: "dark" | "light") => void;
@@ -70,6 +84,7 @@ interface AppState {
   // conversation actions
   newConversation: () => string;
   removeConversation: (id: string) => void;
+  branchFromMessage: (convId: string, messageId: string, text: string) => string;
   setActive: (id: string) => void;
   renameConversation: (id: string, title: string) => void;
   setConversationProvider: (id: string, providerId: string | null, model: string | null) => void;
@@ -140,6 +155,36 @@ export const useStore = create<AppState>()(
       regexScripts: [],
       personas: [],
       uiTheme: "dark",
+      libraryFiles: [],
+      keepLibraryFile: (file) => {
+        if (get().libraryFiles.some((item) => item.id === file.id)) return;
+        const previous = get().libraryFiles;
+        const next = [structuredClone(file), ...previous];
+        if (new TextEncoder().encode(JSON.stringify(next)).byteLength > 2_000_000) throw new Error("Kept files and their versions exceed the 2 MB library limit. Download a backup or remove kept copies to make room.");
+        set({ libraryFiles: next });
+        if (!libraryWasSaved(next)) {
+          set({ libraryFiles: previous });
+          throw new Error("This browser could not save the file library. Download your file or a backup before closing this page.");
+        }
+      },
+      saveFileVersion: (file, filename, content, path) => {
+        const base = get().libraryFiles.find((item) => item.id === file.id) ?? file;
+        const last = base.versions[base.versions.length - 1];
+        if (last.filename === filename && last.content === content && last.path === path) return last.id;
+        const id = nanoid();
+        const now = Date.now();
+        const updated = { ...base, updatedAt: now, versions: [...base.versions, { id, filename, content, createdAt: now, ...(path ? { path } : {}) }] };
+        const previous = get().libraryFiles;
+        const next = [updated, ...previous.filter((item) => item.id !== file.id)];
+        if (new TextEncoder().encode(JSON.stringify(next)).byteLength > 2_000_000) throw new Error("Kept files and their versions exceed the 2 MB library limit. Download a backup or remove kept copies to make room.");
+        set({ libraryFiles: next });
+        if (!libraryWasSaved(next)) {
+          set({ libraryFiles: previous });
+          throw new Error("This browser could not save the file library. Download your file or a backup before closing this page.");
+        }
+        return id;
+      },
+      removeLibraryFile: (id) => set((state) => ({ libraryFiles: state.libraryFiles.filter((file) => file.id !== id) })),
       hydrated: false,
       setHydrated: () => set({ hydrated: true }),
       setUiTheme: (t) => set({ uiTheme: t }),
@@ -177,6 +222,13 @@ export const useStore = create<AppState>()(
           activeId: conv.id,
         }));
         return conv.id;
+      },
+      branchFromMessage: (convId, messageId, text) => {
+        const source = get().conversations.find((conversation) => conversation.id === convId);
+        if (!source) throw new Error("Conversation not found.");
+        const branch = branchConversation(source, messageId, text);
+        set((state) => ({ conversations: [branch, ...state.conversations], activeId: branch.id }));
+        return branch.id;
       },
       removeConversation: (id) =>
         set((s) => {
@@ -318,24 +370,39 @@ export const useStore = create<AppState>()(
           regexScripts: 0,
           personas: 0,
           conversations: 0,
+          libraryFiles: 0,
           skipped: 0,
         };
 
         if (mode === "replace") {
           const next: Partial<AppState> = {
             providers: data.providers,
+            libraryFiles: data.libraryFiles ?? get().libraryFiles,
             presets: data.presets,
             snippets: data.snippets,
             themes: data.themes ?? [],
             regexScripts: data.regexScripts ?? [],
             personas: data.personas ?? [],
           };
+          summary.libraryFiles = data.libraryFiles?.length ?? 0;
           summary.providers = data.providers.length;
           summary.presets = data.presets.length;
           summary.snippets = data.snippets.length;
           summary.themes = (data.themes ?? []).length;
           summary.regexScripts = (data.regexScripts ?? []).length;
           summary.personas = (data.personas ?? []).length;
+          if (!data.conversations) {
+            const current = get();
+            next.conversations = current.conversations.map((conversation) => {
+              const provider = current.providers.find((item) => item.id === conversation.providerId);
+              const persona = current.personas.find((item) => item.id === conversation.personaId);
+              return { ...conversation,
+                providerId: provider ? data.providers.find((item) => item.kind === provider.kind && (item.baseUrl ?? "") === (provider.baseUrl ?? "") && item.label === provider.label)?.id ?? null : null,
+                personaId: persona ? data.personas?.find((item) => item.name.toLowerCase() === persona.name.toLowerCase())?.id ?? null : null,
+              };
+            });
+          }
+          next.modelCache = {};
           if (data.conversations) {
             next.conversations = data.conversations;
             next.activeId = data.conversations[0]?.id ?? null;
@@ -422,18 +489,38 @@ export const useStore = create<AppState>()(
         const reId = <T extends { id: string }>(arr: T[]): T[] =>
           arr.map((x) => ({ ...x, id: nanoid() }));
 
+        const mergedProviders = [...state.providers, ...reId(newProviders)];
+        const mergedPersonas = [...state.personas, ...reId(newPersonas)];
+        const providerMap = new Map(data.providers.map((provider) => [provider.id, mergedProviders.find((item) => provSig(item) === provSig(provider))!.id]));
+        const personaMap = new Map((data.personas ?? []).map((persona) => [persona.id, mergedPersonas.find((item) => item.name.toLowerCase() === persona.name.toLowerCase())!.id]));
+        const libraryIds = new Set(state.libraryFiles.map((file) => file.id));
+        const importedFiles = (data.libraryFiles ?? []).filter((file) => {
+          if (libraryIds.has(file.id)) { summary.skipped++; return false; }
+          libraryIds.add(file.id);
+          return true;
+        });
+        summary.libraryFiles = importedFiles.length;
         const patch: Partial<AppState> = {
-          providers: [...state.providers, ...reId(newProviders)],
+          libraryFiles: [...importedFiles, ...state.libraryFiles],
+          providers: mergedProviders,
           presets: [...state.presets, ...reId(newPresets)],
           snippets: [...state.snippets, ...reId(newSnippets)],
           themes: [...state.themes, ...reId(newThemes)],
           regexScripts: [...state.regexScripts, ...reId(newRegex)],
-          personas: [...state.personas, ...reId(newPersonas)],
+          personas: mergedPersonas,
         };
 
         if (data.conversations?.length) {
           const existingConv = new Set(state.conversations.map((c) => c.id));
-          const newConvs = data.conversations.filter((c) => !existingConv.has(c.id));
+          const newConvs = data.conversations.filter((c) => {
+            if (existingConv.has(c.id)) { summary.skipped++; return false; }
+            existingConv.add(c.id);
+            return true;
+          }).map((conversation) => ({
+            ...conversation,
+            providerId: conversation.providerId ? providerMap.get(conversation.providerId) ?? (state.providers.some((provider) => provider.id === conversation.providerId) ? conversation.providerId : null) : null,
+            personaId: conversation.personaId ? personaMap.get(conversation.personaId) ?? (state.personas.some((persona) => persona.id === conversation.personaId) ? conversation.personaId : null) : null,
+          }));
           summary.conversations = newConvs.length;
           patch.conversations = [...newConvs, ...state.conversations];
         }
@@ -552,6 +639,7 @@ export const useStore = create<AppState>()(
         regexScripts: s.regexScripts,
         personas: s.personas,
         uiTheme: s.uiTheme,
+        libraryFiles: s.libraryFiles,
       }),
       onRehydrateStorage: () => (state) => {
         // Notify subscribers via an action (which calls set) — a direct

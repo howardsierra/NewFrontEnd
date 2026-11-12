@@ -1,3 +1,5 @@
+import { exportFilename } from "./download";
+
 // Personas: reusable "advanced prompts" that shape how the AI speaks and
 // behaves. A persona is composed into a clean system prompt at send time, so
 // editing a persona updates every conversation using it.
@@ -48,8 +50,7 @@ export function composePersona(d: PersonaDraft): string {
 }
 
 export function personaFilename(name: string): string {
-  const safe = name.trim().replace(/[^a-z0-9_-]+/gi, "_").replace(/^_+|_+$/g, "");
-  return `${safe || "persona"}.json`;
+  return exportFilename(name, "json", "persona");
 }
 
 export const STARTER_PERSONAS: PersonaDraft[] = [

@@ -1,7 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { ChatMessage } from "@/lib/types";
+import { ReplyFileCreator } from "./ReplyFileCreator";
+import { splitGeneratedFiles } from "@/lib/generated-files";
 import { Markdown } from "./Markdown";
 import { useStore } from "@/lib/store";
 import { formatTokens } from "@/lib/tokens";
@@ -11,6 +13,7 @@ import {
   Copy,
   Check,
   RotateCcw,
+  GitBranch,
   Trash2,
   AlertTriangle,
   FileText,
@@ -24,13 +27,30 @@ export function MessageItem({
   message,
   convId,
   onRegenerate,
+  onRetry,
+  onBranch,
 }: {
   message: ChatMessage;
   convId: string;
   onRegenerate?: () => void;
+  onRetry?: () => void;
+  onBranch?: (text: string) => void | Promise<void>;
 }) {
+  const title = useStore((state) => state.conversations.find((conversation) => conversation.id === convId)?.title);
   const removeMessage = useStore((s) => s.removeMessage);
   const [copied, setCopied] = useState(false);
+  const [branchError, setBranchError] = useState("");
+  const [branching, setBranching] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(message.content);
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    if (!message.retryAt || message.retryAt <= Date.now()) return;
+    setNow(Date.now());
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [message.retryAt]);
+  const retrySeconds = Math.max(0, Math.ceil(((message.retryAt ?? 0) - now) / 1000));
   const isUser = message.role === "user";
 
   const copy = () => {
@@ -66,12 +86,31 @@ export function MessageItem({
     return (
       <div className="group flex animate-bubble-in flex-col items-end gap-1.5">
         {attachments}
-        {message.content && (
+        {editing ? (
+          <div className="w-full max-w-xl rounded-2xl border border-accent/30 bg-bg-panel p-4">
+            <label className="mb-2 block text-sm font-medium" htmlFor={`branch-${message.id}`}>Edit prompt in a new branch</label>
+            <p className="mb-3 text-xs text-ink-muted">Earlier messages and attachments carry over. The original chat stays intact.</p>
+            <textarea id={`branch-${message.id}`} autoFocus className="input min-h-28 resize-y" value={draft} onChange={(e) => setDraft(e.target.value)} />
+            {branchError && <p role="alert" className="mt-2 text-xs text-red-400">{branchError}</p>}
+            <div className="mt-3 flex justify-end gap-2">
+              <button className="btn-ghost" onClick={() => setEditing(false)}>Cancel</button>
+              <button className="btn-primary" disabled={branching || !onBranch || (!draft.trim() && !message.attachments?.length)} onClick={async () => {
+                if (!onBranch || branching) return;
+                setBranching(true);
+                setBranchError("");
+                try { await onBranch(draft); setEditing(false); }
+                catch (error) { setBranchError(error instanceof Error ? error.message : "Could not create a branch. Try again."); }
+                finally { setBranching(false); }
+              }}><GitBranch size={14} /> Branch & send</button>
+            </div>
+          </div>
+        ) : message.content && (
           <div className="max-w-[88%] overflow-hidden whitespace-pre-wrap break-words rounded-2xl rounded-br-md bg-overlay/[0.06] px-4 py-2.5 text-[15px] leading-relaxed text-ink sm:max-w-[80%]">
             {message.content}
           </div>
         )}
         <div className="msg-toolbar">
+          {onBranch && <ToolbarButton label="Edit & branch" onClick={() => { setDraft(message.content); setBranchError(""); setEditing(true); }}><GitBranch size={14} /></ToolbarButton>}
           {message.content && (
             <ToolbarButton label={copied ? "Copied" : "Copy"} onClick={copy}>
               {copied ? <Check size={14} className="text-green-400" /> : <Copy size={14} />}
@@ -122,22 +161,33 @@ export function MessageItem({
           />
         )}
 
-        {message.error ? (
-          <div className="flex items-start gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
-            <AlertTriangle size={16} className="mt-0.5 shrink-0" />
-            <span>{message.error}</span>
-          </div>
-        ) : message.content ? (
+        {message.content && (
           <>
-            <Markdown content={message.content} />
+            <Markdown content={message.content} origin={{ conversationId: convId, messageId: message.id, title }} createdAt={message.createdAt} pending={message.streaming} fileRevision={message.fileRevision} />
             {message.streaming && <span className="stream-caret" aria-hidden />}
           </>
-        ) : message.streaming && !message.reasoning ? (
-          <div className="thinking-dots flex items-center gap-1 py-2">
-            <span /> <span /> <span />
+        )}
+        {message.error && (
+          <div role="alert" aria-label="Request error" className="mt-2 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-3 text-sm">
+            <div className="flex items-start gap-2 text-ink">
+              <AlertTriangle size={16} className="mt-0.5 shrink-0 text-red-400" />
+              <span>{message.error}</span>
+            </div>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              {onRetry && <button className="btn-soft text-xs" disabled={retrySeconds > 0} onClick={onRetry}><RotateCcw size={13} />{retrySeconds > 0 ? `Retry in ${retrySeconds}s` : "Retry"}</button>}
+              {(message.errorCode === "authentication" || message.errorCode === "quota") && (
+                <button className="btn-ghost text-xs" onClick={() => document.dispatchEvent(new CustomEvent("open-settings"))}>Providers & keys</button>
+              )}
+              {message.content && <span className="text-xs text-ink-muted">Partial reply kept. Retrying requests a new answer.</span>}
+            </div>
           </div>
-        ) : null}
+        )}
+        {!message.content && !message.error && message.streaming && !message.reasoning && (
+          <div className="thinking-dots flex items-center gap-1 py-2"><span /><span /><span /></div>
+        )}
 
+        {message.fileNotice && <p role="status" className="mt-2 text-xs text-ink-muted">{message.fileNotice}</p>}
+        {!message.streaming && !message.error && message.content && !splitGeneratedFiles(message.content).some((part) => part.kind === "file") && <ReplyFileCreator content={message.content} origin={{ conversationId: convId, messageId: message.id, title }} createdAt={message.createdAt} />}
         {!message.streaming && (message.content || message.error) && (
           <div className="msg-toolbar mt-2 w-fit">
             {message.content && (
@@ -145,7 +195,7 @@ export function MessageItem({
                 {copied ? <Check size={14} className="text-green-400" /> : <Copy size={14} />}
               </ToolbarButton>
             )}
-            {onRegenerate && (
+            {onRegenerate && !message.error && (
               <ToolbarButton label="Regenerate" onClick={onRegenerate}>
                 <RotateCcw size={14} />
               </ToolbarButton>

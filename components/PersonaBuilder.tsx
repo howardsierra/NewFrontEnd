@@ -1,5 +1,7 @@
 "use client";
 
+import { downloadFile } from "@/lib/download";
+
 import { useMemo, useRef, useState } from "react";
 import { useStore } from "@/lib/store";
 import {
@@ -66,13 +68,7 @@ export function PersonaBuilder({ onClose }: { onClose: () => void }) {
   };
 
   const download = () => {
-    const blob = new Blob([JSON.stringify({ ...draft }, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = personaFilename(draft.name);
-    a.click();
-    URL.revokeObjectURL(url);
+    downloadFile(JSON.stringify({ ...draft }, null, 2), personaFilename(draft.name), "application/json");
   };
   const copy = () =>
     navigator.clipboard.writeText(composed).then(() => {

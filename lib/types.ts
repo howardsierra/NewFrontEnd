@@ -1,3 +1,5 @@
+import type { RequestErrorCode } from "./request-errors";
+
 // Shared types used across the app.
 
 export type ProviderKind = "openrouter" | "anthropic" | "openai" | "gemini" | "custom";
@@ -62,7 +64,14 @@ export interface ChatMessage {
   providerLabel?: string;
   /** True while the assistant message is still streaming. */
   streaming?: boolean;
+  revisionOf?: string;
+  fileRevision?: { fileId: string; partIndex: number };
+  fileNotice?: string;
   error?: string;
+  errorCode?: RequestErrorCode;
+  retryAt?: number;
+  /** Retained only to retry image generation using the same mode and size. */
+  imageRequest?: { prompt: string; size: string };
   /** Real token usage reported by the provider, when available. */
   usage?: TokenUsage;
   /** Streamed reasoning ("thinking") from models that expose it. */

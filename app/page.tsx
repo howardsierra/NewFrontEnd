@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useStore } from "@/lib/store";
 import { STORAGE_EVENT, StorageNotice } from "@/lib/safeStorage";
+import { FileLibrary } from "@/components/FileLibrary";
 import { Sidebar } from "@/components/Sidebar";
 import { ChatView } from "@/components/ChatView";
 import { SettingsModal } from "@/components/SettingsModal";
@@ -23,7 +24,6 @@ export default function Page() {
   const activeId = useStore((s) => s.activeId);
   const newConversation = useStore((s) => s.newConversation);
   const setActive = useStore((s) => s.setActive);
-  const providers = useStore((s) => s.providers);
 
   // Client-only gate. Renders the loading state on the server and on the first
   // client render (so hydration matches), then flips true after mount — by
@@ -37,6 +37,7 @@ export default function Page() {
     document.documentElement.setAttribute("data-theme", uiTheme);
   }, [uiTheme]);
 
+  const [filesOpen, setFilesOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [presetsOpen, setPresetsOpen] = useState(false);
   const [snippetsOpen, setSnippetsOpen] = useState(false);
@@ -57,10 +58,28 @@ export default function Page() {
     } else if (!activeId || !conversations.some((c) => c.id === activeId)) {
       setActive(conversations[0].id);
     }
-    // Open settings automatically on first run when no providers exist.
-    if (providers.length === 0) setSettingsOpen(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mounted]);
+  }, [mounted, conversations, activeId, newConversation, setActive]);
+
+  useEffect(() => {
+    const openFiles = () => setFilesOpen(true);
+    const openSettings = () => setSettingsOpen(true);
+    const shortcut = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k" && !event.shiftKey && !event.altKey) {
+        event.preventDefault();
+        if (filesOpen || settingsOpen || presetsOpen || snippetsOpen || backupOpen || themesOpen || regexOpen || personasOpen || syncOpen) return;
+        newConversation();
+        setSidebarOpen(false);
+      }
+    };
+    document.addEventListener("open-files", openFiles);
+    document.addEventListener("open-settings", openSettings);
+    document.addEventListener("keydown", shortcut);
+    return () => {
+      document.removeEventListener("open-files", openFiles);
+      document.removeEventListener("open-settings", openSettings);
+      document.removeEventListener("keydown", shortcut);
+    };
+  }, [newConversation, filesOpen, settingsOpen, presetsOpen, snippetsOpen, backupOpen, themesOpen, regexOpen, personasOpen, syncOpen]);
 
   // Mobile sidebar toggle via custom event from the model bar.
   useEffect(() => {
@@ -117,6 +136,7 @@ export default function Page() {
       {/* Desktop sidebar */}
       <div className="hidden lg:block">
         <Sidebar
+          onOpenFiles={() => setFilesOpen(true)}
           onOpenSettings={() => setSettingsOpen(true)}
           onOpenPresets={() => setPresetsOpen(true)}
           onOpenSnippets={() => setSnippetsOpen(true)}
@@ -130,9 +150,10 @@ export default function Page() {
 
       {/* Mobile sidebar drawer */}
       <div
+        aria-hidden={!sidebarOpen}
         className={clsx(
           "fixed inset-0 z-40 lg:hidden",
-          sidebarOpen ? "pointer-events-auto" : "pointer-events-none"
+          sidebarOpen ? "visible pointer-events-auto" : "invisible pointer-events-none"
         )}
       >
         <div
@@ -149,6 +170,7 @@ export default function Page() {
           )}
         >
           <Sidebar
+            onOpenFiles={() => setFilesOpen(true)}
             onOpenSettings={() => {
               setSettingsOpen(true);
               setSidebarOpen(false);
@@ -197,6 +219,7 @@ export default function Page() {
           </button>
         </div>
       )}
+      {filesOpen && <FileLibrary onClose={() => setFilesOpen(false)} />}
       {settingsOpen && <SettingsModal onClose={() => setSettingsOpen(false)} />}
       {presetsOpen && <PresetBuilder onClose={() => setPresetsOpen(false)} />}
       {snippetsOpen && <SnippetLibrary onClose={() => setSnippetsOpen(false)} />}

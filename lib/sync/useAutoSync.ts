@@ -54,6 +54,7 @@ export function useAutoSync() {
         s.snippets !== prev.snippets ||
         s.themes !== prev.themes ||
         s.regexScripts !== prev.regexScripts ||
+        s.libraryFiles !== prev.libraryFiles ||
         s.personas !== prev.personas
       ) {
         schedule();

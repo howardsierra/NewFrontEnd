@@ -148,7 +148,7 @@ function Setup() {
         <Lock size={15} className="mt-0.5 shrink-0 text-accent-soft" />
         <p>
           <span className="font-medium text-ink">End-to-end encrypted.</span> Everything
-          is encrypted in this browser with your passphrase before it's uploaded. The
+          is encrypted in this browser with your passphrase before it&apos;s uploaded. The
           server only stores scrambled data and never sees the passphrase.
         </p>
       </div>
@@ -157,7 +157,7 @@ function Setup() {
         <div className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200/90">
           <AlertTriangle size={15} className="mt-0.5 shrink-0" />
           <p>
-            Sync storage isn't connected to this deployment yet. In Vercel, create a
+            Sync storage isn&apos;t connected to this deployment yet. In Vercel, create a
             private Blob store and connect it to this project, then redeploy.
           </p>
         </div>
@@ -230,8 +230,8 @@ function Setup() {
         />
         <span className="flex gap-1.5">
           <ShieldAlert size={15} className="shrink-0" />
-          I've saved this passphrase somewhere safe. It can't be reset or recovered —
-          without it, synced data can't be decrypted.
+          I&apos;ve saved this passphrase somewhere safe. It can&apos;t be reset or recovered —
+          without it, synced data can&apos;t be decrypted.
         </span>
       </label>
 

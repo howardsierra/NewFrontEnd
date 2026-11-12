@@ -1,3 +1,4 @@
+import { validateLibraryFiles, type LibraryFile } from "./file-library";
 // Versioned export/import of the user's whole setup so it can be backed up or
 // moved between browsers/devices. Everything otherwise lives only in this
 // browser's localStorage.
@@ -21,6 +22,7 @@ export interface BackupFile {
   regexScripts?: SavedRegex[];
   personas?: SavedPersona[];
   conversations?: Conversation[];
+  libraryFiles?: LibraryFile[];
 }
 
 interface BackupSource {
@@ -31,6 +33,7 @@ interface BackupSource {
   regexScripts: SavedRegex[];
   personas: SavedPersona[];
   conversations: Conversation[];
+  libraryFiles?: LibraryFile[];
 }
 
 export interface BackupOptions {
@@ -53,6 +56,7 @@ export function buildBackup(src: BackupSource, opts: BackupOptions): BackupFile 
     themes: src.themes,
     regexScripts: src.regexScripts,
     personas: src.personas,
+    ...(src.libraryFiles ? { libraryFiles: src.libraryFiles } : {}),
     ...(opts.includeConversations ? { conversations: src.conversations } : {}),
   };
 }
@@ -80,6 +84,7 @@ export function validateBackup(
   ) {
     return { ok: false, error: "Backup is missing expected sections." };
   }
+  if (j.libraryFiles !== undefined && !validateLibraryFiles(j.libraryFiles)) return { ok: false, error: "The backup contains invalid file-library entries." };
   return { ok: true, data: json as BackupFile };
 }
 
@@ -91,6 +96,7 @@ export interface ImportSummary {
   regexScripts: number;
   personas: number;
   conversations: number;
+  libraryFiles: number;
   skipped: number;
 }
 

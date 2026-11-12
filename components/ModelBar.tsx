@@ -37,7 +37,7 @@ export function ModelBar({
   );
 
   return (
-    <div className="relative z-20 flex items-center gap-1.5 border-b border-line/70 bg-bg-subtle/50 px-2 py-2.5 backdrop-blur-xl sm:gap-2 sm:px-3 sm:py-3">
+    <div className="relative z-20 flex items-center gap-1.5 border-b border-line/60 bg-bg/95 px-2 py-2.5 sm:gap-2 sm:px-3 sm:py-3">
       <button
         className="btn-ghost px-2 lg:hidden"
         onClick={onToggleSidebar}
@@ -103,7 +103,7 @@ export function ModelBar({
       <div className="flex-1" />
 
       <span className="hidden items-center gap-1.5 rounded-full border border-line px-2.5 py-1 text-[11px] text-ink-muted md:flex">
-        <span className="h-1.5 w-1.5 rounded-full bg-green-400/80" />
+        <span className="h-1.5 w-1.5 rounded-full bg-[#8aa68c]" />
         Private
       </span>
       <ThemeToggle />

@@ -1,3 +1,5 @@
+import { exportFilename } from "./download";
+
 // SillyTavern UI Theme builder (targets ST 1.18.0).
 // Exported JSON imports via User Settings → Theme → Import.
 
@@ -168,6 +170,5 @@ export function hexToRgb(hex: string): { r: number; g: number; b: number } {
 }
 
 export function themeFilename(name: string): string {
-  const safe = name.trim().replace(/[^a-z0-9_-]+/gi, "_").replace(/^_+|_+$/g, "");
-  return `${safe || "theme"}.json`;
+  return exportFilename(name, "json", "theme");
 }

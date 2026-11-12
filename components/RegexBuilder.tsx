@@ -1,5 +1,7 @@
 "use client";
 
+import { downloadFile } from "@/lib/download";
+
 import { useMemo, useRef, useState } from "react";
 import { useStore } from "@/lib/store";
 import {
@@ -53,13 +55,7 @@ export function RegexBuilder({ onClose }: { onClose: () => void }) {
   const result = useMemo(() => testRegex(draft, sample), [draft, sample]);
 
   const download = () => {
-    const blob = new Blob([json], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = regexFilename(draft.scriptName);
-    a.click();
-    URL.revokeObjectURL(url);
+    downloadFile(json, regexFilename(draft.scriptName), "application/json");
   };
   const copy = () =>
     navigator.clipboard.writeText(json).then(() => {

@@ -1,3 +1,5 @@
+import { exportFilename } from "./download";
+
 // SillyTavern "Chat Completion" preset builder.
 //
 // Targets SillyTavern 1.18.0. Produces JSON that imports directly via
@@ -306,6 +308,5 @@ export function parsePreset(json: any, fallbackName = "Imported Preset"): Preset
 }
 
 export function presetFilename(name: string): string {
-  const safe = name.trim().replace(/[^a-z0-9_-]+/gi, "_").replace(/^_+|_+$/g, "");
-  return `${safe || "preset"}.json`;
+  return exportFilename(name, "json", "preset");
 }

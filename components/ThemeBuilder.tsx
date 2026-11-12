@@ -1,5 +1,7 @@
 "use client";
 
+import { downloadFile } from "@/lib/download";
+
 import { useMemo, useRef, useState } from "react";
 import { useStore } from "@/lib/store";
 import {
@@ -46,13 +48,7 @@ export function ThemeBuilder({ onClose }: { onClose: () => void }) {
   const json = useMemo(() => JSON.stringify(buildTheme(draft), null, 2), [draft]);
 
   const download = () => {
-    const blob = new Blob([json], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = themeFilename(draft.name);
-    a.click();
-    URL.revokeObjectURL(url);
+    downloadFile(json, themeFilename(draft.name), "application/json");
   };
   const copy = () =>
     navigator.clipboard.writeText(json).then(() => {

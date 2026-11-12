@@ -30,3 +30,10 @@ yarn-error.log*
 
 # vercel
 .vercel
+
+# browser regression artifacts
+/test-results/
+/playwright-report/
+
+# Generated from the locked PDF.js dependency by scripts/copy-pdf-worker.mjs
+/public/pdf.worker.min.mjs

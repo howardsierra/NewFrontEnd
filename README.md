@@ -66,6 +66,138 @@ your keys directly when you'd rather skip the web platforms.
   persisted server-side. The proxy exists only to sidestep the CORS blocks that
   OpenAI and Anthropic enforce on direct browser calls.
 
+## Appearance
+
+The studio uses charcoal and lavender in dark mode and warm ivory in light mode.
+Toggle the theme with the sun/moon button in the chat header; the choice is saved.
+File library sits near the top of the sidebar, and **Studio tools** expands to
+show the prompt library, personas, and SillyTavern builders.
+
+File cards keep Download and Preview & edit visible. Use the **…** menu for
+Keep in library, Revise with AI, and View source. Document previews use a paper
+canvas; code previews show syntax coloring and line numbers without executing code.
+
+## Workspace shortcuts and tools
+
+- **Search chats & messages** filters conversation titles and message text. Recent chats are ordered by their latest activity.
+- **⌘K / Ctrl+K** opens a new chat, inheriting the current provider and model. The shortcut pauses while a workspace dialog is open.
+- Starter cards insert an editable prompt into the composer; they never send automatically.
+- Unsent text is saved separately for each conversation in this tab's session storage and survives a page refresh. Attachments are not saved with drafts, and drafts are not included in backups or cloud sync.
+- **Export chat** downloads the conversation's message text as Markdown, without provider credentials, system settings, or attachment files.
+- Deleting a conversation containing messages asks for confirmation. Deleting the last conversation opens a fresh chat.
+
+## Ask the AI to create a file
+
+Ask for a file directly, for example **“Create a PDF project plan”**, **“Make a
+Word document from these notes”**, or **“Create a CSV budget.”** Completed file
+blocks appear as named download cards. Clicking **Download** builds a real PDF
+or DOCX document, or saves the exact contents of a text/code file.
+
+Supported document formats are PDF and DOCX (Word), with headings, paragraphs,
+lists, tables, and code. Text-based formats include TXT, Markdown, CSV, JSON,
+HTML, and source code. PDF/Word image embedding is not included. Unsupported
+binary formats are rejected instead of saving text with a misleading extension.
+JSON is checked before saving, and CSV files include a UTF-8 marker for Excel.
+
+If a model returns an ordinary reply, choose **Save reply as a file**, enter a
+filename such as `report.pdf`, and download it. Files are created in your browser;
+there is no additional document service or upload. The model still receives the
+chat and its attachments through your selected provider as usual.
+
+The model is instructed to use this fenced-file format when a file is requested:
+
+````text
+```markdown filename="report.pdf"
+# Project plan
+
+Document content here.
+```
+````
+
+The libraries for PDF/Word creation load only when needed. They do not execute
+generated code. File contents remain available in the saved reply, so its download
+cards reappear after refreshing or switching devices through chat sync.
+
+## File library, editing, revisions, and project downloads
+
+Open **File library** in the sidebar to search completed generated documents and
+code across chats. Uploaded text and extracted PDF/Word text are also indexed.
+Search file contents or chat titles, filter by type, and open the source chat.
+Images remain in their chats; this library is for editable documents and code.
+
+- **Preview & edit** opens a readable document preview or source view. Change the
+  filename/project path and contents, then **Save new version**. Earlier versions
+  remain available in the version selector. Downloads use the version you are
+  viewing, including unsaved edits; ZIPs use the latest saved versions.
+- **Keep in library** retains an independent source copy even if its chat is
+  deleted. Unkept files are discovered from chat history and disappear when that
+  history is deleted. Kept source content and versions have a 2 MB combined
+  browser-library limit; reaching it shows an error without removing old versions.
+- **Revise with AI** attaches the selected file content to the composer. Describe
+  your changes and send. A complete returned file becomes a new library version.
+  Uploaded DOCX/PDF revisions use extracted text; original layout and embedded
+  images are not retained. This is document revision, not in-place binary editing.
+- **Download ZIP** bundles a multi-file reply, or checked library files. Relative
+  project paths such as `src/style.css`, dotfiles, and extensionless files are
+  preserved. Duplicate names get numeric suffixes, and parent/absolute paths are
+  rejected. A bundle supports up to 50 files and 20 MB of combined source content.
+
+Kept files and all their versions are included in backups and participate in the
+existing encrypted sync when enabled. Library downloads are built from saved
+source on demand. If storage fails, the app reports it instead of claiming the
+file was kept. Document previews render Markdown; PDF/Word pagination may differ.
+
+## Files and code
+
+Attach source files, text, PDFs, or images from the file picker, drag-and-drop,
+or clipboard. Click an attachment's filename to preview it before sending.
+Unreadable files show inline errors; valid files in the same selection stay attached.
+
+- Up to 10 files per message, totaling 3.5 MB after processing.
+- Text/source files: 3 MB each. Unknown extensions have the same size and binary checks.
+- Images: 20 MB before resizing. PDFs: 20 MB, up to 200 pages and 3 MB of extracted text. DOCX files: 20 MB and 3 MB of extracted text.
+- PDFs use a matching local PDF.js worker copied during install, development startup,
+  and production builds. No external worker CDN is needed. Scanned PDFs need OCR first.
+- Text previews show the first 12,000 characters; the full extracted text is attached.
+- Image generation accepts a text prompt only; switch back to chat to attach files.
+
+Code blocks support copy, long-line wrapping, and downloading a file with a
+language-appropriate extension. Clipboard failures show a download alternative.
+Uploaded and generated code is displayed as text; this app does not execute it.
+
+## Branching and request recovery
+
+Hover over a user message (or tap it on mobile) and choose **Edit & branch**.
+Edit the prompt and select **Branch & send** to create a separate conversation
+with the preceding history, settings, persona, and attachments. The original
+conversation remains intact. A configured provider and model are required.
+Images must be available on this device before branching; if a synced image is
+still loading, the editor explains what to do without creating an incomplete branch.
+
+Failed replies show a **Retry** action on the latest message. Key and credit
+errors link to **Providers & keys**; model and context errors explain what to
+change. Rate limits honor the provider's `Retry-After` delay. Retries are manual
+and may incur provider charges. Interrupted replies keep any text already
+received; retrying requests a new answer. Image retries preserve image mode,
+prompt, and size without duplicating the user turn.
+
+## Development checks
+
+```bash
+npm run lint
+npm test                  # unit tests: branching, errors, backups, provider adapters, streaming, routes
+npm run build
+npm run typecheck
+npx playwright install chromium
+npm run test:e2e           # browser tests against a production server on port 3100
+```
+
+When using an existing Chromium installation, skip the browser download and run
+`PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium npm run test:e2e`.
+The browser suite uses simulated providers and does not require API keys or make
+billable AI calls. Build before running it, and leave port 3100 free.
+GitHub Actions runs these checks for pushes and pull requests.
+
 ## Why a proxy?
 
 OpenAI and Anthropic reject API calls made directly from a browser (CORS).

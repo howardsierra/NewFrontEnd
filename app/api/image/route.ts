@@ -1,3 +1,4 @@
+import { providerFailure } from "@/lib/request-errors";
 import { NextRequest } from "next/server";
 import { buildImageCall, imageFromResponse, ImageRequest } from "@/lib/server/image";
 
@@ -12,6 +13,7 @@ export async function POST(request: NextRequest) {
     return json({ error: "Invalid request body." }, 400);
   }
 
+  if (!req || typeof req !== "object") return json({ error: "Invalid request body." }, 400);
   if (!req.prompt?.trim()) return json({ error: "Enter a prompt." }, 400);
   if (!req.model) return json({ error: "No model selected." }, 400);
   if (!req.apiKey && req.kind !== "custom") return json({ error: "Missing API key." }, 400);
@@ -31,7 +33,7 @@ export async function POST(request: NextRequest) {
       body: call.body,
     });
   } catch (e: any) {
-    return json({ error: `Could not reach provider: ${e.message || "network error"}` }, 502);
+    return json({ error: "Could not reach the provider. Check the connection or choose another provider.", errorCode: "network" }, 502);
   }
 
   const text = await upstream.text();
@@ -39,12 +41,12 @@ export async function POST(request: NextRequest) {
   try {
     data = JSON.parse(text);
   } catch {
-    return json({ error: `Provider returned a non-JSON response (${upstream.status}).` }, 502);
+    return json(providerFailure(upstream.status >= 400 ? upstream.status : 502), upstream.status >= 400 ? upstream.status : 502);
   }
 
   if (!upstream.ok) {
     const detail = data?.error?.message || data?.message || text.slice(0, 300);
-    return json({ error: `Provider returned ${upstream.status}: ${detail}` }, upstream.status);
+    return json(providerFailure(upstream.status, String(detail), upstream.headers.get("retry-after")), upstream.status);
   }
 
   const image = imageFromResponse(req.kind, data);

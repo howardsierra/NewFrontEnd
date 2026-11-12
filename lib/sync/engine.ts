@@ -33,6 +33,7 @@ export const SETTINGS = [
   "themes",
   "regexScripts",
   "personas",
+  "libraryFiles",
 ] as const;
 type SettingsKey = (typeof SETTINGS)[number];
 type Coll = SettingsKey | "conversations";
